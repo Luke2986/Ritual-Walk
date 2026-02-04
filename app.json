@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Step Ritual",
+    "slug": "step-ritual",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "stepritual",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stepritual.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["location"],
+        "NSLocationWhenInUseUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche in background.",
+        "NSLocationAlwaysUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche quando l'app e in background."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0221",
+        "foregroundImage": "./assets/images/icon.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.stepritual.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0221",
+          "dark": {
+            "backgroundColor": "#0D0221"
+          }
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate.",
+          "locationAlwaysAndWhenInUsePermission": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche in background.",
+          "locationAlwaysPermission": "Step Ritual ha bisogno della tua posizione per continuare a tracciare le tue camminate quando l'app e in background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ],
+    "experiments": {
+      "reactCompiler": true
+    }
+  }
+}
