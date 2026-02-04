@@ -1,0 +1,36 @@
+# AGGIORNAMENTO FUNZIONALE: NAVIGAZIONE A 5 TAB & LOGICA DI COPPIA
+# Focus: Raffinatezza UX e Coerenza Cromatica (80s Vibe)
+
+Context: 
+L'app deve evolvere a una navigazione a 5 Tab per posizionare "Cammina" al centro. Dobbiamo implementare le sezioni "Premi" e "Noi" con una logica "poche cose ma perfette".
+
+Task 1: Refactor Tab Bar (Simmetria & FAB)
+- Crea una Tab Bar con 5 sezioni: [Oggi] - [Premi] - [Cammina] - [Storia] - [Noi].
+- Il tasto centrale "Cammina" deve essere un FAB (Floating Action Button) prominente.
+- STILE: Usa `primary` (#FF4D6D) per il tasto centrale con un'ombra esterna (glow) coordinata. Le tab attive usano `secondary` (#B88BFF), quelle inattive `textSecondary` (#3B2F8A).
+
+Task 2: Tab "Premi" (Bacheca Badge)
+- Implementa una griglia 3x3 di badge circolari o esagonali.
+- I badge bloccati devono essere in scala di grigi opaca.
+- I badge sbloccati devono usare il gradiente "Sunset Boost" o `accentMagenta` (#FF2FB3).
+- Feature core: Un contatore in alto che dice "Prossimo obiettivo: 5km totali" usando il font Space Grotesk Bold.
+
+Task 3: Tab "Noi" (Relazione & Statistiche)
+- Layout: Due avatar circolari con bordo neon (#00E5FF) uniti da un'icona cuore.
+- Sotto gli avatar, mostra solo 3 "Power Stats":
+  1. "Giorni Insieme" (Conteggio dalla creazione della coppia).
+  2. "Km Totali di Coppia" (Somma delle camminate di entrambi).
+  3. "Record Streak" (Miglior serie di giorni consecutivi).
+- Colore di sfondo della Tab: `bg` (#FFF3D6).
+
+Task 4: Integrazione Database (Drizzle)
+- Crea o aggiorna la tabella `badges` (id, nome, descrizione, km_soglia, icona).
+- Assicurati che le query della Tab "Noi" aggreghino correttamente i dati di entrambi gli utenti legati dallo stesso `couple_id`.
+
+Guidelines:
+- Mantieni un padding generoso e uno stile "pulito ma vibrante".
+- Non aggiungere funzionalità extra: focalizzati sulla fluidità delle animazioni di transizione tra le tab.
+- Lingua: Esclusivamente ITALIANO.
+
+Actionable Feedback:
+Aggiorna prima la struttura della navigazione, poi procedi con il popolamento delle due nuove Tab.

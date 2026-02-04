@@ -1,0 +1,81 @@
+# TASK: Sistema di Collegamento Partner (Invite-Claim-Pair)
+# Focus: Backend Transazionale, UX Real-time e Sicurezza Dati
+
+## 0) Obiettivo Finale
+Permettere a due utenti separati di collegarsi sotto lo stesso "ID Coppia" tramite un codice univoco. Una volta collegati, i dati delle camminate di entrambi devono confluire nello stesso database di coppia per alimentare i grafici e le statistiche "Noi".
+
+---
+
+## 1) Specifiche del Codice (UX & Security)
+- **Formato**: 6 caratteri alfanumerici, maiuscoli (es: RIT-82X).
+- **Leggibilità**: Escludere caratteri ambigui (0, O, 1, I, L) per facilitare la dettatura a voce.
+- **Univocità**: Il database deve imporre un vincolo `UNIQUE`. Se viene generato un duplicato, il server deve riprovare automaticamente.
+- **Scadenza**: Il codice scade automaticamente dopo 24 ore se non riscattato.
+
+---
+
+## 2) Architettura Database (PostgreSQL + Drizzle)
+### 2.1 Tabella `couples` (o `pairs`)
+- `id`: UUID (Primary Key)
+- `invite_code`: String (Unique, Nullable dopo il claim)
+- `inviter_id`: FK (User che ha generato il codice)
+- `claimant_id`: FK (User che ha riscattato il codice)
+- `status`: Enum ('pending', 'active')
+- `created_at`: Timestamp
+- `expires_at`: Timestamp (now + 24h)
+
+### 2.2 Tabella `users` (Aggiornamento)
+- Aggiungere colonna `couple_id` (FK verso `couples.id`).
+
+---
+
+## 3) Flusso Tecnico (API)
+
+### 3.1 `POST /api/invites/generate`
+- Genera il codice sicuro.
+- Crea una riga in `couples` con `status: 'pending'`.
+- Assegna il `couple_id` all'utente richiedente (Inviter).
+- Ritorna il codice e il tempo rimanente.
+
+### 3.2 `POST /api/invites/join`
+**Operazione Atomica (Database Transaction):**
+- Verifica che il codice esista, sia `pending` e non scaduto.
+- Verifica che il richiedente (Claimant) non sia già in una coppia.
+- Aggiorna la riga in `couples`: imposta `claimant_id`, `status: 'active'` e pulisce `invite_code`.
+- Assegna lo stesso `couple_id` al profilo dell'utente Claimant.
+
+### 3.3 `GET /api/couple/status`
+- Endpoint per il **polling**: l'Inviter chiama questa rotta ogni 5 secondi mentre aspetta. Appena lo status diventa 'active', l'app aggiorna la UI automaticamente.
+
+---
+
+## 4) UI e Schermate (React Native)
+
+### 4.1 Tab Account (Stato Iniziale)
+- Mostra due bottoni prominenti: 
+  1. "Crea un Rituale" (Genera codice)
+  2. "Unisciti a un Rituale" (Inserisci codice)
+
+### 4.2 Schermata "Invita Partner"
+- Visualizzazione del codice con font `Space Grotesk Bold` in formato grande.
+- Bottone "Copia" e "Condividi via WhatsApp".
+- Stato di caricamento: "In attesa del partner..." con uno spinner neon.
+
+### 4.3 Schermata "Inserisci Codice"
+- Input field ottimizzato (tastiera maiuscola forzata).
+- Validazione immediata: se il codice non esiste, mostra errore "Codice non valido o scaduto".
+
+---
+
+## 5) Integrazione Stile (UI KIT)
+- **Codice Attivo**: Colore `#00E5FF` (Electric Cyan) con bagliore neon.
+- **Bottoni**: `primary` (#FF4D6D) per le azioni principali.
+- **Feedback Successo**: Animazione con il colore `#00D68F` (Palm Green) quando il pairing è completato.
+
+---
+
+## 6) Istruzioni per Replit Agent
+1. Verifica lo schema Drizzle esistente prima di applicare le migrazioni.
+2. Crea le rotte API in un file separato `routes/couple.ts`.
+3. Assicurati che il login sia persistente prima di testare il pairing.
+4. Una volta collegati, reindirizza entrambi gli utenti alla Dashboard "Oggi".

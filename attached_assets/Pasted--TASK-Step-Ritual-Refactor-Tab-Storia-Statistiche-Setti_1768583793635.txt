@@ -1,0 +1,147 @@
+# TASK: Step Ritual — Refactor Tab “Storia” + Statistiche (Settimana/Mese/Anno) + Spostamento “Camminate recenti” SOLO in Home
+
+## Contesto (IMPORTANTISSIMO)
+Il progetto Step Ritual ESISTE GIÀ (Expo + React Native) ed è già in produzione interna con UI e navigazione Bottom Tab.
+Sono allegate 2 schermate di riferimento:
+1) HOME (tab “Oggi”) con: Streak, Km totali, Partner, e “Camminate recenti” (questo deve RESTARE qui).
+2) STORIA (tab “Storia”) con: sezione Statistiche già presente + placeholder calendario + (attualmente) “Camminate recenti” in basso.
+
+Questo task NON deve ricreare l’app né riscrivere la navigazione: deve solo modificare i componenti/screen coinvolti.
+
+## Obiettivo
+1) Nel tab “Storia” voglio SOLO la sezione **Statistiche**, con 3 viste:
+   - **Settimana**
+   - **Mese**
+   - **Anno**
+2) Rimuovere “Camminate recenti” dalla schermata “Storia”.
+3) “Camminate recenti” deve rimanere visibile SOLO in **Home** (tab “Oggi”), come nella schermata allegata.
+
+---
+
+## Requisiti UI/UX (coerenti con Step Ritual)
+- Lingua: Italiano
+- Palette (se già nel progetto, riusa i token; altrimenti usa questi):
+  - Background: `#FFF3D6` (Creamy Sand)
+  - Text: `#1A1458` (Midnight Indigo)
+  - Io: `#00E5FF` (Electric Cyan)
+  - Partner: `#B88BFF` (Lavender Pop)
+  - Border soft: `#E8D7FF`
+  - Card: `#FFFFFF`
+- Segmented control (pill) come screenshot: **Settimana / Mese / Anno**
+- Transizione quando cambio vista: fade (opacità) fluida
+- Mantieni stile attuale delle card e spaziature già presenti nell’app (non cambiare look & feel)
+
+---
+
+## TASK A — Pulizia contenuti “Storia”
+1) Apri la screen del tab “Storia” (es: `StoriaScreen`, `HistoryScreen` o simile).
+2) Elimina dal layout la sezione “Camminate recenti” che attualmente compare in fondo.
+3) Verifica che “Camminate recenti” resti solo nella HOME:
+   - Se oggi lo stesso componente è duplicato in due screen, estrailo (se utile) in `components/RecentWalksList.tsx` e usalo SOLO in Home.
+   - In Storia non deve essere renderizzato.
+
+**Criterio accettazione A**
+- In Home vedo “Camminate recenti” come prima.
+- In Storia NON vedo più “Camminate recenti”.
+
+---
+
+## TASK B — Statistiche in “Storia”: 3 viste Settimana / Mese / Anno
+### Struttura
+Nella schermata “Storia” deve rimanere:
+- Titolo “Storico”
+- H1 “Statistiche”
+- Toggle pill: [Settimana] [Mese] [Anno]
+- Card principale statistiche (come screenshot)
+
+### Dati
+Usa i dati reali dell’app se esistono già (store/DB/API).
+Se non trovi subito la sorgente dati:
+- usa temporaneamente mock data SOLO per mostrare UI corretta
+- lascia TODO chiaro per collegare la fonte dati reale
+
+### Formattazione distanza
+- Unità: Km
+- Se valore < 1 km → mostra metri (0.85 → “850m”)
+- Per i totali (X): arrotonda a max 1 decimale o 2 (coerente con UI attuale, es “16.2 km”).
+
+### Grafico
+Riusa la libreria già presente nel progetto.
+Se non c’è, usa `react-native-gifted-charts` (compatibile Expo, aggiungi dipendenze necessarie).
+Grafico comparativo Io vs Partner:
+- barre affiancate
+- colori: Io `#00E5FF`, Partner `#B88BFF`
+- angoli superiori arrotondati (radius 6)
+- leggero “glow” (shadow/opacity)
+
+---
+
+## VISTA 1: Settimana
+- Mostra 7 colonne (Lun…Dom oppure ultimi 7 giorni coerenti col progetto)
+- In alto nella card:
+  “Insieme avete percorso”
+  [X km]
+  “questa settimana”
+- Sotto al grafico:
+  legenda tipo screenshot: “Io (x km)  Partner (y km)”
+
+**Accettazione Settimana**
+- Identico comportamento attuale (se già esiste), ma stabile e ben formattato.
+
+---
+
+## VISTA 2: Mese
+- Mostra dati aggregati del mese corrente (o mese selezionabile se già previsto)
+- Opzioni consigliate (scegli la più semplice che si integra con la UI attuale):
+  A) Barre giornaliere (1..30/31) con due barre affiancate (può essere denso)
+  B) Barre settimanali (Week1..Week4/5) con confronto Io vs Partner (più leggibile)
+  
+Scegli B se vuoi evitare un grafico troppo affollato.
+Testo in alto nella card:
+  “Insieme avete percorso”
+  [X km]
+  “questo mese”
+Legenda sotto come Settimana.
+
+**Accettazione Mese**
+- Toggle su “Mese” cambia davvero contenuto (grafico e totale).
+- Totale X è coerente con la somma del periodo.
+
+---
+
+## VISTA 3: Anno
+- Mostra 12 mesi (Gen…Dic) con barre affiancate Io vs Partner
+Testo in alto nella card:
+  “Insieme avete percorso”
+  [X km]
+  “quest’anno”
+Legenda sotto come Settimana.
+
+**Accettazione Anno**
+- Toggle su “Anno” cambia contenuto (grafico e totale).
+- 12 colonne, leggibili.
+
+---
+
+## TASK C — Animazioni & Stato UI
+- Il pill toggle deve cambiare stato attivo (background e testo come screenshot)
+- Animazione transizione: fade tra contenuti (settimana/mese/anno)
+- Mantieni performance: niente re-render inutili, memo se necessario
+
+---
+
+## Deliverable richiesti
+1) Storia: solo Statistiche con 3 viste funzionanti (Settimana/Mese/Anno).
+2) Rimosso “Camminate recenti” da Storia.
+3) Home: “Camminate recenti” invariato e visibile.
+4) Codice pulito e coerente con struttura esistente (no refactor massivi).
+5) Se usi mock data: TODO chiaro + funzione di aggregazione pronta per dati reali.
+
+---
+
+## Nota per l’Agent (IMPORTANTISSIMA)
+Prima di modificare:
+- identifica i nomi reali delle rotte/tab (“Oggi”, “Storia”, ecc.)
+- individua i file delle screen effettive
+- riusa componenti e stili già presenti nel progetto
+- non cambiare la bottom tab né il flusso del pulsante centrale

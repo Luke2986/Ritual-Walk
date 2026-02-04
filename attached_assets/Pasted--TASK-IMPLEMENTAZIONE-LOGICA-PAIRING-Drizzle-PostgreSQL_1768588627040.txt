@@ -1,0 +1,140 @@
+# TASK: IMPLEMENTAZIONE LOGICA PAIRING (Drizzle + PostgreSQL) CON CODICE INVITO UNIVOCO E TRANSAZIONI
+
+## Contesto
+Step Ritual ha già autenticazione utenti e database PostgreSQL con Drizzle.
+Dobbiamo collegare due utenti sotto lo stesso `couple_id` per condividere statistiche/camminate.
+Il flusso è:
+- Utente A genera un codice invito
+- Utente B inserisce il codice e si collega
+- Entrambi finiscono con lo stesso `couple_id`
+- Il codice viene invalidato (non riutilizzabile)
+
+## Requisiti chiave (IMPORTANTI)
+- Codice invito deve essere **univoco a livello DB** (vincolo UNIQUE), non solo “probabilistico”.
+- La join deve essere **atomica** (transaction) per evitare race condition (due utenti che riscattano lo stesso codice).
+- Un utente può essere in **una sola coppia** (per ora).
+- Il codice deve poter **scadere** (hai chiesto “codice scaduto” → serve `expires_at`).
+
+---
+
+## Task 1: Schema Database (Drizzle)
+
+### Tabella `couples`
+- `id` UUID PK
+- `invite_code` VARCHAR UNIQUE NULLABLE
+- `status` ENUM('pending','active')
+- `created_by_user_id` UUID (FK users.id)  // utile per debug e sicurezza
+- `expires_at` TIMESTAMP NOT NULL          // es: now + 24h
+- `created_at` TIMESTAMP NOT NULL default now()
+- `activated_at` TIMESTAMP NULL
+
+NOTE:
+- Quando la coppia diventa `active`, setta `invite_code = NULL`.
+- In Postgres, UNIQUE su `invite_code` funziona bene anche con NULL (più righe possono avere NULL).
+
+### Tabella `users`
+- aggiungi `couple_id` UUID NULLABLE (FK verso `couples.id`)
+- aggiungi indice su `users.couple_id`
+
+Migrations: genera e applica migration Drizzle.
+
+---
+
+## Task 2: API Generazione Codice (Utente A)
+### Endpoint
+`POST /api/couple/generate` (auth required)
+
+### Logica
+1) Recupera `userId` dall'autenticazione.
+2) Se `users.couple_id` NON è null → ritorna 409 `USER_ALREADY_PAIRED`.
+3) Genera codice invito:
+   - usa `nanoid` con alphabet senza caratteri ambigui (escludi O0I1)
+   - lunghezza consigliata: 8 (6 va bene, ma 8 riduce collisioni e tentativi)
+4) Inserisci in `couples` una riga con:
+   - status 'pending'
+   - invite_code
+   - created_by_user_id = userId
+   - expires_at = now + 24h
+5) Aggiorna `users.couple_id = couples.id` per l’utente A (dentro la stessa transaction)
+6) Ritorna `{ invite_code, expires_at }`
+
+### Collisioni
+Se insert fallisce per UNIQUE su invite_code:
+- rigenera e riprova (max 5 tentativi), poi 500 con errore controllato.
+
+---
+
+## Task 3: API Join (Utente B)
+### Endpoint
+`POST /api/couple/join` (auth required)
+Body: `{ invite_code: string }`
+
+### Logica (DEVE ESSERE TRANSACTIONALE)
+1) Recupera `userId` dall’autenticazione.
+2) Se `users.couple_id` NON è null → 409 `USER_ALREADY_PAIRED`.
+3) Trova la coppia per `invite_code`:
+   - Se non esiste → 404 `INVALID_CODE`
+4) Valida:
+   - `status` deve essere 'pending' → altrimenti 409 `CODE_ALREADY_USED`
+   - `expires_at` > now → altrimenti 410 `CODE_EXPIRED`
+   - `created_by_user_id != userId` → altrimenti 400 `CANNOT_PAIR_WITH_SELF`
+   - Verifica anche che l’utente A non sia già in un’altra coppia attiva (difensivo)
+5) In transaction:
+   - aggiorna `users.couple_id = couples.id` per userId (utente B)
+   - aggiorna `couples.status = 'active'`, `activated_at = now`, `invite_code = NULL`
+6) Ritorna:
+   - `{ couple_id, partner: { id, name, avatarUrl } }`
+   (partner = l’altro utente in `users` con stesso `couple_id` e id != userId)
+
+### Concorrenza / Race condition
+Assicurati che la transaction impedisca doppio join:
+- usa lock della riga couple (SELECT ... FOR UPDATE) o update condizionale:
+  `UPDATE couples SET status='active', invite_code=NULL ... WHERE id=? AND status='pending' AND invite_code=?`
+e verifica `rowsAffected === 1`.
+
+---
+
+## Task 4: UI (Tab Account + opzionale Home Partner Card)
+### Account Tab
+- Se `user.couple_id` è null:
+  - sezione “Collega partner”
+  - input `invite_code`
+  - button “Collega”
+  - button “Genera codice” (mostra modal con codice + copia + condividi)
+- Se `user.couple_id` presente:
+  - mostra “Sei collegato con [PartnerName]”
+  - nascondi controlli pairing
+
+### UX Errori
+Mostra messaggi chiari per:
+- codice errato / inesistente
+- scaduto
+- già usato
+- già in coppia
+- self-pair
+
+---
+
+## Guidelines tecniche
+- Tutte le API devono richiedere auth (usa il middleware/approccio già presente nel progetto).
+- Niente mock data.
+- HTTP status consigliati:
+  - 200 ok
+  - 400 invalid input/self
+  - 404 invalid code
+  - 409 already paired / already used
+  - 410 expired
+- Scrivi helper `getPartnerByCoupleId(coupleId, myUserId)`.
+
+---
+
+## Actionable Feedback / Test
+Dopo l’implementazione:
+1) Crea 2 utenti di test (A e B).
+2) Con A: `POST /api/couple/generate` → ottieni codice.
+3) Con B: `POST /api/couple/join` con codice.
+4) Verifica in DB:
+   - entrambi hanno stesso `users.couple_id`
+   - `couples.status='active'`
+   - `couples.invite_code IS NULL`
+5) Stampa a console (dev) `couple_id` e i due userId per conferma.

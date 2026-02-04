@@ -1,0 +1,88 @@
+# BUGFIX CRITICO: Step Ritual — Statistiche “Storia” stanno usando dati inventati/mocks
+# Obiettivo: collegare Settimana/Mese/Anno + Calendario SOLO ai dati reali delle camminate registrate
+
+## Contesto
+L’app Step Ritual è già esistente (Expo + React Native) e registra camminate reali (tracking).
+In HOME la sezione “Camminate recenti” mostra dati reali.
+In STORIA → “Statistiche”, i numeri risultano “inventati” (vedi screenshot allegati): questo indica che il grafico/calendario usano mock/fake/random data.
+QUESTO NON È ACCETTABILE: le statistiche devono essere calcolate esclusivamente dai dati reali salvati dall’app.
+
+## Task 1 — Trova la sorgente dati reale delle camminate
+1) Individua dove vengono salvate e lette le camminate reali (lo stesso usato da “Camminate recenti” in Home).
+   - Cerca nel progetto: `recentWalks`, `activities`, `walks`, `sessions`, `tracks`, `history`, `storage`, `db`, `firestore`, `sqlite`, `asyncstorage`, `supabase`, ecc.
+2) Identifica lo schema reale di una camminata (campi tipici):
+   - userId / ownerId
+   - startAt / endAt (timestamp)
+   - distanceMeters o distanceKm
+   - (opzionale) elevationGain, durationSec, routePoints
+3) Crea (o riusa) una funzione unica di accesso dati:
+   - `getWalksBetween(startDate, endDate)` che ritorna le camminate reali nel range
+   - oppure hook/store già esistente (`useWalks()`, `useActivities()`) esteso per filtrare per data.
+
+## Task 2 — Elimina COMPLETAMENTE mock/fake data nelle Statistiche
+- Rimuovi qualsiasi:
+  - `mock`, `fake`, `demo`, `random`, `sample`, `dummy`
+  - `activityByDate` popolata a mano
+- Le screen Statistiche devono ricevere SOLO:
+  - array di camminate reali filtrate per range
+  - o aggregazioni derivate da esse
+
+## Task 3 — Calcolo Statistiche reali (Settimana / Mese / Anno)
+Implementa un modulo di aggregazione (es. `utils/stats.ts`) con funzioni PURE:
+
+### 3.1 Settimana
+- Range: settimana corrente Lun→Dom (o ultimi 7 giorni) — scegli e mantieni coerente con UI.
+- Output per chart:
+  - 7 bucket (Lun…Dom)
+  - distanza per giorno per:
+    - Me (utente loggato)
+    - Partner
+- Totale “Insieme” = somma(me + partner)
+
+### 3.2 Mese
+- Range: mese corrente
+- UI attuale mostra “Sett 1..4” (settimane del mese):
+  - crea 4/5 bucket “Sett 1..Sett 4/5” basandoti sulle settimane reali del mese
+- Output: distanza aggregata per bucket per me/partner
+- Totale “Insieme” mese
+
+### 3.3 Anno
+- Range: anno corrente
+- 12 bucket (Gen..Dic)
+- Output: distanza aggregata per mese per me/partner
+- Totale “Insieme” anno
+
+### Formattazione unità
+- Chart usa km, ma se valore < 1 km mostra metri in label/testi (0.85km → “850m”).
+- Distanze interne meglio in metri e converti in km solo in output.
+
+## Task 4 — Calendario “Progressi” in STORIA (reale, non inventato)
+Sostituisci il placeholder “Calendario (prossimamente)” con calendario reale (es. `react-native-calendars`).
+Il calendario deve usare i dati reali del mese corrente:
+- Per ogni giorno del mese:
+  - se esiste almeno una camminata reale “me” in quel giorno → indicator blu
+  - se esiste almeno una camminata reale “partner” in quel giorno → indicator viola
+  - se entrambi nello stesso giorno → bordo #FFE66D
+Nessun random.
+
+## Task 5 — Coerenza Home vs Storia
+- Il totale e le camminate mostrate in “Camminate recenti” devono essere compatibili con le somme in Statistiche.
+- Se non ci sono camminate reali nel periodo: mostra 0 km e chart vuota (niente numeri fake).
+
+## Task 6 — Debug di verifica (solo dev)
+Aggiungi temporaneamente (o in console log) una verifica:
+- conteggio camminate usate per periodo (es. “Settimana: 6 attività reali”)
+- range date effettivo (start/end)
+Questo serve a garantire che non stiamo usando mock.
+
+## Criteri di accettazione (obbligatori)
+- Nessun valore “inventato”: tutte le statistiche derivano dai record reali
+- Settimana/Mese/Anno cambiano davvero i numeri in base ai dati salvati
+- Calendario evidenzia solo i giorni con camminate reali
+- Se non c’è attività, mostra 0 e UI “vuota” corretta
+- Nessuna regressione su Home “Camminate recenti”
+
+## Output richiesto
+- Codice funzionante
+- Rimozione mock data dalle Statistiche
+- Aggregatore riutilizzabile e testabile

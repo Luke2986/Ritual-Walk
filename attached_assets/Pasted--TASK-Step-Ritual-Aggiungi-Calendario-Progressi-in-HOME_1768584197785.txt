@@ -1,0 +1,90 @@
+# TASK: Step Ritual — Aggiungi “Calendario Progressi” in HOME + Navigazione a STORIA (vista Mese)
+
+## Contesto (progetto già esistente)
+Step Ritual è già implementata (Expo + React Native) con Bottom Tab: Home = “Oggi”, storico = “Storia”.
+Al momento:
+- In HOME vedo: Streak, Km totali, Partner, Camminate recenti (queste devono RESTARE).
+- In STORIA vedo: Statistiche con toggle Settimana/Mese/Anno e un placeholder “Calendario (prossimamente)”.
+
+## Obiettivo
+1) In HOME voglio un widget visibile “above the fold” chiamato **Calendario progressi** (mini calendario mensile).
+2) Il calendario deve usare gli stessi indicatori che voglio anche nello Storico.
+3) Tappando il widget calendario (o una CTA “Vedi storico”), devo andare nel tab **Storia** e aprire la sezione Statistiche in **vista Mese** (focus sul calendario).
+
+---
+
+## UI Tokens (Step Ritual)
+- Background app: #FFF3D6
+- Card: #FFFFFF, border #E8D7FF, radius 16
+- Text: #1A1458 (primario), #3B2F8A (secondario)
+- Io: #00E5FF (cyan)
+- Partner: #B88BFF (violet)
+- Insieme (bordo neon): #FFE66D
+
+---
+
+## Task A — Widget “Calendario progressi” in HOME
+### Posizione
+Inseriscilo nella Home **sopra “Camminate recenti”** (quindi rimane visibile senza scroll troppo).
+
+### Contenuto card
+- Header: “Calendario progressi” + (opzionale) mese corrente (es. “Gen 2026”)
+- Mini calendario mensile (griglia completa del mese, ma “mini”, compatto)
+- CTA piccola o tappabilità su tutta la card: “Vedi storico →”
+
+### Libreria consigliata
+Usa `react-native-calendars` (se già presente, riusala).
+Implementa un `dayComponent` custom per disegnare gli indicatori.
+
+### Indicatori per giorno (OBBLIGATORI)
+Per ogni cella giorno:
+- Se ha camminato SOLO Io: una barretta sottile orizzontale BLU sotto il numero
+- Se ha camminato SOLO Partner: una barretta sottile orizzontale VIOLA sotto il numero
+- Se hanno camminato ENTRAMBI:
+  - bordo neon #FFE66D attorno alla cella
+  - + due barrette (blu e viola) sotto il numero affiancate
+
+Dettagli visivi:
+- barrette: altezza 3px, radius 2, larghezza 12–14px ciascuna, gap 4px
+- bordo “insieme”: 2px, radius 10–12
+
+---
+
+## Task B — Tap dal calendario HOME → STORIA (vista Mese + focus)
+Quando tappo la card calendario:
+- Apri il tab “Storia”
+- Passa params: `{ focus: 'stats', range: 'month' }`
+- Nella screen Storia:
+  - se riceve `focus === 'stats'`, scrolla (se necessario) alla sezione Statistiche
+  - imposta automaticamente il toggle su **Mese**
+
+> Nota: l’Agent deve usare i nomi reali delle rotte già esistenti nel progetto (non rinominare la navigazione).
+
+---
+
+## Task C — STORIA: attiva davvero il calendario (togli placeholder)
+Nella vista “Mese” dello Storico:
+- Sostituisci “Calendario (prossimamente)” con lo stesso calendario (full size, non mini) usando lo stesso `dayComponent`.
+- Mantieni anche un riepilogo mese: “Insieme avete percorso X km questo mese”.
+
+---
+
+## Dati
+Se esiste già una fonte dati attività (store/DB), usala.
+Se non è immediato, crea temporaneamente:
+`activityByDate: { "YYYY-MM-DD": { me: boolean, partner: boolean } }`
+con alcuni giorni popolati per mostrare tutti i casi (solo me / solo partner / entrambi).
+Lascia TODO chiaro su dove collegare i dati reali.
+
+---
+
+## Criteri di accettazione
+- In HOME vedo una card “Calendario progressi” con mini calendario mensile
+- Vedo gli indicatori corretti (blu / viola / bordo giallo per entrambi)
+- Tap sul calendario → apro “Storia” e vedo Statistiche in vista “Mese” con calendario vero (no placeholder)
+- “Camminate recenti” rimane solo in HOME (non aggiungerla in Storia)
+
+## Output richiesto
+- Modifiche minime, senza refactor massivo
+- Componenti riutilizzabili (es. `ProgressCalendar`, `dayComponent`)
+- Dipendenze aggiunte solo se necessarie

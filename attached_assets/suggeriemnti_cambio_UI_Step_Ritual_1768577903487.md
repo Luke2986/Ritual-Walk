@@ -1,0 +1,42 @@
+
+
+---
+
+### **1\. Gerarchia Visiva e Layout**
+
+* **Margini e Spaziature (White Space):** I margini laterali dei bottoni nella barra di navigazione e delle card sono un po' troppo vicini ai bordi dello schermo. Aumenta il padding laterale complessivo per dare più "respiro".  
+* **Bilanciamento delle Card:** La card dello *Streak* è molto alta rispetto al contenuto. Potresti ridurne l'altezza o aggiungere un micro-grafico dell'andamento settimanale per riempire lo spazio bianco a destra.  
+* **Focus sul "Partner":** La card "In attesa" ha lo stesso peso visivo dei "Km Totali". Se il cuore dell'app è l'aspetto social/rituale, questa card dovrebbe invitare di più all'azione (magari con un bottone "Invita" più evidente).
+
+### **2\. UI e Color Palette**
+
+* **Contrasto e Accessibilità:**  
+  * Il testo celeste "Step Ritual" in alto ha poco contrasto sullo sfondo crema. Rendilo più scuro o usa un colore più saturo.  
+  * Le icone dentro i cerchi (Mappa e Cuore) sono molto chiare. Aumenta l'opacità o lo spessore del tratto per migliorarne la leggibilità.  
+* **La Card "Camminate Recenti":** Attualmente è molto testuale. Per renderla "perfetta", aggiungi un elemento visuale:  
+  * Una piccola **mappa stilizzata** del percorso.  
+  * O un'icona che rappresenti il tipo di attività.  
+* **Colori delle Card:** I gradienti pastello sono belli, ma assicurati che il colore del testo sopra di essi sia sufficientemente scuro (specialmente il grigio su azzurro/rosa).
+
+### **3\. User Experience (UX)**
+
+* **Call to Action (CTA) Principale:** Il tasto "Cammina" nel menu in basso è la funzione core. In molte app di fitness, il tasto centrale viene messo in risalto (magari più grande, circolare o con un colore contrastante) per spingere l'utente all'azione immediata.  
+* **Feedback Visivo:** Lo "Streak 1 giorno" è un traguardo\! Aggiungi un piccolo badge o un effetto glow alla saetta per renderlo gratificante.
+
+### **4\. Micro-Dettagli (Il tocco Senior)**
+
+* **Tipografia:** "Benvenuto, Luca" è corretto, ma potresti giocare con i pesi: *Light* per "Benvenuto" e **Bold** per "Luca" per dare più carattere.  
+* **Iconografia:** Assicurati che il "peso" ottico delle icone nella barra di navigazione sia uniforme. Al momento, l'icona "Profilo" sembra leggermente più pesante rispetto a "Storico".  
+* **Angoli (Border Radius):** Stai usando angoli molto arrotondati (ottimo per il look amichevole), ma assicurati che il raggio di curvatura delle card interne sia armonizzato con quello dei contenitori esterni.
+
+---
+
+### **Proposta di Revisione Rapida (Tabella)**
+
+| Elemento | Problema | Soluzione Suggerita |
+| :---- | :---- | :---- |
+| **Navigazione** | Troppo piatta | Rendi il tasto "Cammina" un Floating Action Button (FAB) centrale. |
+|  |  |  |
+| **Header** | Testo poco leggibile | Usa un blu notte o il viola del brand per il titolo "Step Ritual". |
+| **Card Partner** | Stato passivo | Aggiungi un piccolo pulsante "+" o "Invita" dentro la card rosa. |
+
