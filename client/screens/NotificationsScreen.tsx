@@ -365,17 +365,6 @@ export default function NotificationsScreen() {
           <View style={styles.divider} />
 
           <CategoryRow
-            icon="award"
-            title="Streak e badge"
-            description="Presto disponibile"
-            enabled={false}
-            onToggle={() => {}}
-            disabled
-          />
-
-          <View style={styles.divider} />
-
-          <CategoryRow
             icon="calendar"
             title="Riepilogo settimanale"
             description={

@@ -88,7 +88,7 @@ Qualsiasi servizio che esegue Node.js va bene. Il comando di installazione è `n
 
 ### Notifiche
 
-Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmate sul telefono in base alle impostazioni e non serve alcun server di push. Gli avvisi su streak e badge sono indicati come "Presto disponibile".
+Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmate sul telefono in base alle impostazioni e non serve alcun server di push.
 
 #### Avvisi al partner (push, facoltativi)
 
@@ -215,7 +215,7 @@ Any service that runs Node.js works. The install command is `npm install` and th
 
 ### Notifications
 
-Reminders and the weekly summary are **local** notifications: they're scheduled on the phone from your settings, so no push server is needed. Streak and badge alerts are marked "Presto disponibile" ("Coming soon").
+Reminders and the weekly summary are **local** notifications: they're scheduled on the phone from your settings, so no push server is needed.
 
 #### Partner alerts (push, optional)
 
