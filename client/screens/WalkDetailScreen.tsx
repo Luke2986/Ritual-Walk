@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
 import { invalidateBadges } from "@/lib/badgesQuery";
 import { confirmDestructive } from "@/lib/confirm";
+import { formatDecimal, formatPace } from "@/lib/formatDistance";
 
 type WalkDetailScreenProps = {
   route: RouteProp<{ WalkDetail: { walkId: string } }, "WalkDetail">;
@@ -40,6 +41,7 @@ interface WalkDetail {
   userId: string;
   distanceKm: number;
   durationSeconds: number;
+  stepsTotal: number | null;
   startedAt: string;
   endedAt: string | null;
   pathJson: { latitude: number; longitude: number }[] | null;
@@ -221,7 +223,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
           <View style={styles.statsRow}>
             <StatCard
               label="Distanza"
-              value={`${walk.distanceKm.toFixed(2)} km`}
+              value={`${formatDecimal(walk.distanceKm, 2)} km`}
               icon="map-pin"
               color={theme.primary}
             />
@@ -235,23 +237,29 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
           </View>
           <View style={[styles.statsRow, { marginTop: Spacing.md }]}>
             <StatCard
-              label="Velocita Media"
-              value={`${speed.toFixed(1)} km/h`}
+              label="Velocità media"
+              value={`${formatDecimal(speed, 1)} km/h`}
               icon="trending-up"
               color={theme.accent}
             />
             <View style={{ width: Spacing.md }} />
             <StatCard
-              label="Passo"
-              value={
-                walk.distanceKm > 0
-                  ? `${(walk.durationSeconds / 60 / walk.distanceKm).toFixed(1)} min/km`
-                  : "0 min/km"
-              }
-              icon="activity"
+              label="Passo al km"
+              value={formatPace(walk.durationSeconds, walk.distanceKm)}
+              icon="watch"
               color={Colors.dark.success}
             />
           </View>
+          {walk.stepsTotal ? (
+            <View style={[styles.statsRow, { marginTop: Spacing.md }]}>
+              <StatCard
+                label="Passi"
+                value={walk.stepsTotal.toLocaleString("it-IT")}
+                icon="activity"
+                color={theme.secondary}
+              />
+            </View>
+          ) : null}
         </View>
 
         {walk.userId === user?.id ? (

@@ -17,6 +17,7 @@ import { BadgeIcon } from "@/components/BadgeIcon";
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_APP_WIDTH } from "@/hooks/useAppWidth";
 import { Colors, Spacing, BorderRadius, Shadows } from "@/constants/theme";
+import { formatDecimal } from "@/lib/formatDistance";
 
 interface WalkSummarySheetProps {
   visible: boolean;
@@ -63,7 +64,7 @@ export function WalkSummarySheet({
     if (km < 1) {
       return `${Math.round(km * 1000)} m`;
     }
-    return `${km.toFixed(2)} km`;
+    return `${formatDecimal(km, 2)} km`;
   };
 
   const handleConfirm = () => {

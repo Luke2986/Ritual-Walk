@@ -9,7 +9,6 @@ export interface NotificationPrefs {
   reminderDays: number[];
   reminderMessage: string | null;
   partnerAlertsEnabled: boolean;
-  badgesEnabled: boolean;
   weeklySummaryEnabled: boolean;
   weeklySummaryDay: number;
   weeklySummaryTime: string;

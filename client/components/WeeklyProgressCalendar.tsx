@@ -2,12 +2,11 @@ import React from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
-import { Spacing, BorderRadius } from "@/constants/theme";
-import { ActivityByDate } from "@/components/ProgressCalendar";
+import { Spacing, BorderRadius, PersonColors } from "@/constants/theme";
+import type { ActivityByDate } from "@/lib/statsAggregation";
 import { shortName } from "@/lib/shortName";
 
 const electricCyan = "#00E5FF";
-const lavenderPop = "#B88BFF";
 const togetherGlow = "#FFE66D";
 const midnightIndigo = "#1A1458";
 const secondaryText = "#3B2F8A";
@@ -91,13 +90,16 @@ export function WeeklyProgressCalendar({
                   <View
                     style={[
                       styles.indicator,
-                      { backgroundColor: electricCyan },
+                      { backgroundColor: PersonColors.me },
                     ]}
                   />
                 ) : null}
                 {hasPartner ? (
                   <View
-                    style={[styles.indicator, { backgroundColor: lavenderPop }]}
+                    style={[
+                      styles.indicator,
+                      { backgroundColor: PersonColors.partner },
+                    ]}
                   />
                 ) : null}
               </View>
@@ -108,13 +110,20 @@ export function WeeklyProgressCalendar({
 
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendBar, { backgroundColor: electricCyan }]} />
+          <View
+            style={[styles.legendBar, { backgroundColor: PersonColors.me }]}
+          />
           <ThemedText type="small" style={styles.legendText}>
             Io
           </ThemedText>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendBar, { backgroundColor: lavenderPop }]} />
+          <View
+            style={[
+              styles.legendBar,
+              { backgroundColor: PersonColors.partner },
+            ]}
+          />
           <ThemedText type="small" style={styles.legendText}>
             {shortName(partnerName)}
           </ThemedText>
@@ -122,10 +131,16 @@ export function WeeklyProgressCalendar({
         <View style={styles.legendItem}>
           <View style={styles.legendBoth}>
             <View
-              style={[styles.legendBarSmall, { backgroundColor: electricCyan }]}
+              style={[
+                styles.legendBarSmall,
+                { backgroundColor: PersonColors.me },
+              ]}
             />
             <View
-              style={[styles.legendBarSmall, { backgroundColor: lavenderPop }]}
+              style={[
+                styles.legendBarSmall,
+                { backgroundColor: PersonColors.partner },
+              ]}
             />
           </View>
           <ThemedText type="small" style={styles.legendText}>

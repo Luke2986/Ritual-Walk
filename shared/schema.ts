@@ -110,6 +110,7 @@ export const notificationPrefs = pgTable("notification_prefs", {
   partnerAlertsEnabled: boolean("partner_alerts_enabled")
     .notNull()
     .default(true),
+  // No longer used. Kept in the table so `db:push` doesn't stop to ask about deleting data.
   badgesEnabled: boolean("badges_enabled").notNull().default(true),
   weeklySummaryEnabled: boolean("weekly_summary_enabled")
     .notNull()
@@ -309,7 +310,6 @@ export const notificationPrefsUpdateSchema = z
     reminderDays: z.array(weekdayField).max(7),
     reminderMessage: z.string().trim().max(200).nullable(),
     partnerAlertsEnabled: z.boolean(),
-    badgesEnabled: z.boolean(),
     weeklySummaryEnabled: z.boolean(),
     weeklySummaryDay: weekdayField,
     weeklySummaryTime: timeField,

@@ -34,7 +34,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { WeeklyProgressCalendar } from "@/components/WeeklyProgressCalendar";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, PersonColors } from "@/constants/theme";
 import { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 import {
   StatsResponse,
@@ -43,6 +43,7 @@ import {
   getEffectiveStreak,
   statsQueryKey,
 } from "@/lib/statsAggregation";
+import { formatDecimal } from "@/lib/formatDistance";
 
 type DashboardScreenProps = {
   navigation: NativeStackNavigationProp<DashboardStackParamList, "Dashboard">;
@@ -50,6 +51,7 @@ type DashboardScreenProps = {
 
 interface WalkData {
   id: string;
+  userId: string;
   distanceKm: number;
   durationSeconds: number;
   startedAt: string;
@@ -145,6 +147,9 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       duration={item.durationSeconds}
       date={item.startedAt}
       userNickname={item.userNickname}
+      personColor={
+        item.userId === user?.id ? PersonColors.me : PersonColors.partner
+      }
       onPress={() => navigation.navigate("WalkDetail", { walkId: item.id })}
     />
   );
@@ -193,7 +198,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           <View style={styles.statsRow}>
             <StatCard
               label="Km Totali"
-              value={couple.totalKm.toFixed(1)}
+              value={formatDecimal(couple.totalKm, 1)}
               icon="map"
               color="#00E5FF"
             />
@@ -203,7 +208,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                 label="Cammini con"
                 value={partner.nickname}
                 icon="users"
-                color="#FF1493"
+                color={PersonColors.partner}
               />
             ) : (
               <Pressable
@@ -212,13 +217,17 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
               >
                 <LinearGradient
                   colors={[
-                    "rgba(255, 20, 147, 0.15)",
-                    "rgba(255, 20, 147, 0.05)",
+                    "rgba(13, 148, 136, 0.15)",
+                    "rgba(13, 148, 136, 0.05)",
                   ]}
                   style={styles.inviteGradient}
                 >
                   <View style={styles.inviteIconContainer}>
-                    <Feather name="user-plus" size={22} color="#FF1493" />
+                    <Feather
+                      name="user-plus"
+                      size={22}
+                      color={PersonColors.partner}
+                    />
                   </View>
                   <ThemedText type="small" style={styles.inviteLabel}>
                     CAMMINI CON
@@ -257,7 +266,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           onPress={handleInvitePartner}
           variant="highlight"
           style={styles.connectCard}
-          glowColor="#FF1493"
+          glowColor={PersonColors.partner}
         >
           <ThemedText
             type="body"
@@ -394,7 +403,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: "rgba(255, 20, 147, 0.3)",
+    borderColor: "rgba(13, 148, 136, 0.3)",
     alignItems: "center",
     minHeight: 140,
   },
@@ -402,7 +411,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255, 20, 147, 0.2)",
+    backgroundColor: "rgba(13, 148, 136, 0.2)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.sm,
@@ -420,7 +429,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   inviteButton: {
-    backgroundColor: "#FF1493",
+    backgroundColor: PersonColors.partner,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
@@ -444,7 +453,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FF1493",
+    backgroundColor: PersonColors.partner,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.full,

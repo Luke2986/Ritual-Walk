@@ -3,6 +3,7 @@ import { View, StyleSheet, AccessibilityInfo } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows, Colors } from "@/constants/theme";
+import { formatDecimal } from "@/lib/formatDistance";
 
 interface KpiCardProps {
   label: string;
@@ -61,7 +62,7 @@ export function WalkKpiRow({
     if (km < 1) {
       return { value: Math.round(km * 1000).toString(), unit: "m" };
     }
-    return { value: km.toFixed(2), unit: "km" };
+    return { value: formatDecimal(km, 2), unit: "km" };
   };
 
   const distance = formatDistance(distanceKm);

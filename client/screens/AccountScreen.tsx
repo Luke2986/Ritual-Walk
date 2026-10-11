@@ -24,7 +24,7 @@ import * as Clipboard from "expo-clipboard";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, PersonColors } from "@/constants/theme";
 import type { AccountStackParamList } from "@/navigation/AccountStackNavigator";
 
 function SectionHeader({ title }: { title: string }) {
@@ -342,7 +342,7 @@ export default function AccountScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
             <LinearGradient
-              colors={["#B88BFF", "#9D6EDD"]}
+              colors={["#DDA21F", PersonColors.me]}
               style={styles.avatar}
             >
               <ThemedText style={styles.avatarText}>{userInitials}</ThemedText>
@@ -358,8 +358,8 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
-        {/* SEZIONE 2: RITUALE DI COPPIA */}
-        <SectionHeader title="RITUALE DI COPPIA" />
+        {/* SEZIONE 2: IL TUO RITUALE */}
+        <SectionHeader title="IL TUO RITUALE" />
         <View style={styles.ritualCard}>
           {(() => {
             const isUnpaired = !couple;
@@ -395,7 +395,11 @@ export default function AccountScreen() {
                         {partner.nickname}
                       </ThemedText>
                     </View>
-                    <Feather name="users" size={20} color="#FF4D6D" />
+                    <Feather
+                      name="users"
+                      size={20}
+                      color={PersonColors.partner}
+                    />
                   </View>
                 </>
               );
@@ -770,7 +774,7 @@ const styles = StyleSheet.create({
     bottom: -3,
     borderRadius: 35,
     borderWidth: 2,
-    borderColor: "#B88BFF",
+    borderColor: PersonColors.me,
   },
   avatarText: {
     fontSize: 24,
@@ -873,7 +877,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#FF4D6D",
+    backgroundColor: PersonColors.partner,
     alignItems: "center",
     justifyContent: "center",
   },

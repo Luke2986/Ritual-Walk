@@ -13,12 +13,15 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Colors } from "@/constants/theme";
+import { formatDecimal } from "@/lib/formatDistance";
 
 interface WalkCardProps {
   distance: number;
   duration: number;
   date: string;
   userNickname: string;
+  // The walker's color (PersonColors.me or PersonColors.partner).
+  personColor: string;
   onPress?: () => void;
   style?: ViewStyle;
 }
@@ -30,6 +33,7 @@ export function WalkCard({
   duration,
   date,
   userNickname,
+  personColor,
   onPress,
   style,
 }: WalkCardProps) {
@@ -78,14 +82,14 @@ export function WalkCard({
       style={[styles.container, style, animatedStyle]}
     >
       <LinearGradient
-        colors={[`${theme.primary}15`, theme.backgroundDefault]}
+        colors={[`${personColor}15`, theme.backgroundDefault]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.card, { borderColor: `${theme.primary}30` }]}
+        style={[styles.card, { borderColor: `${personColor}30` }]}
       >
         <View style={styles.header}>
           <View style={styles.userInfo}>
-            <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+            <View style={[styles.avatar, { backgroundColor: personColor }]}>
               <Feather name="user" size={16} color={theme.buttonText} />
             </View>
             <ThemedText type="body" style={styles.nickname}>
@@ -101,7 +105,7 @@ export function WalkCard({
           <View style={styles.stat}>
             <Feather name="map-pin" size={18} color={theme.secondary} />
             <ThemedText style={styles.statValue}>
-              {distance.toFixed(2)} km
+              {formatDecimal(distance, 2)} km
             </ThemedText>
           </View>
           <View style={styles.stat}>
@@ -113,7 +117,10 @@ export function WalkCard({
           <View style={styles.stat}>
             <Feather name="trending-up" size={18} color={Colors.dark.success} />
             <ThemedText style={styles.statValue}>
-              {duration > 0 ? ((distance / duration) * 3600).toFixed(1) : 0}{" "}
+              {formatDecimal(
+                duration > 0 ? (distance / duration) * 3600 : 0,
+                1,
+              )}{" "}
               km/h
             </ThemedText>
           </View>

@@ -1,6 +1,8 @@
-import { ActivityByDate } from "@/components/ProgressCalendar";
 import { apiRequest } from "@/lib/query-client";
 import { daysBetween, toLocalDateKey } from "@shared/dates";
+
+// Who walked on each calendar day (YYYY-MM-DD).
+export type ActivityByDate = Record<string, { me: boolean; partner: boolean }>;
 
 export interface WalkData {
   id: string;

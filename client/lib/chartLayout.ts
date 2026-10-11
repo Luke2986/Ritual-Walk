@@ -1,3 +1,5 @@
+import { formatDecimal } from "@/lib/formatDistance";
+
 export const CHART_EDGE_SPACING = 4;
 
 // gifted-charts scrolls overflowing bars instead of shrinking them, which hid the last groups.
@@ -15,7 +17,7 @@ export function fitBarWidth(
 export function formatKmAxisLabel(value: string) {
   const km = parseFloat(value);
   if (km < 1) return `${Math.round(km * 1000)}m`;
-  return Number.isInteger(km) ? `${km}` : km.toFixed(1);
+  return Number.isInteger(km) ? `${km}` : formatDecimal(km, 1);
 }
 
 // Full labels get cut to "L…" under narrow bar pairs; fall back to short ones there.

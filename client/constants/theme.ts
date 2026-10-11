@@ -66,6 +66,13 @@ export const Colors = {
   },
 };
 
+// Colors that tell the two people apart without hinting at gender (no pink/blue split).
+// Checked for color-blind separation and 3:1 contrast on white chart cards.
+export const PersonColors = {
+  me: "#C98500",
+  partner: "#0D9488",
+};
+
 export const Spacing = {
   xs: 4,
   sm: 8,

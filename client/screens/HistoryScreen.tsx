@@ -25,7 +25,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { WalkCard } from "@/components/WalkCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spacing } from "@/constants/theme";
+import { Spacing, PersonColors } from "@/constants/theme";
 import { HistoryStackParamList } from "@/navigation/HistoryStackNavigator";
 import {
   StatsResponse,
@@ -218,6 +218,11 @@ export default function HistoryScreen() {
                 duration={walk.durationSeconds}
                 date={walk.startedAt}
                 userNickname={nicknameOf(walk.userId)}
+                personColor={
+                  walk.userId === user?.id
+                    ? PersonColors.me
+                    : PersonColors.partner
+                }
                 onPress={() =>
                   navigation.navigate("WalkDetail", { walkId: walk.id })
                 }

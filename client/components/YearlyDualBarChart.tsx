@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View, Platform } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { ThemedText } from "@/components/ThemedText";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, PersonColors } from "@/constants/theme";
 import { formatDistance } from "@/lib/formatDistance";
 import { shortName } from "@/lib/shortName";
 import { useAppWidth } from "@/hooks/useAppWidth";
@@ -13,8 +13,6 @@ import {
   formatKmAxisLabel,
 } from "@/lib/chartLayout";
 
-const electricCyan = "#00E5FF";
-const lavenderPop = "#B88BFF";
 const midnightIndigo = "#1A1458";
 
 interface YearlyData {
@@ -82,14 +80,14 @@ export function YearlyDualBarChart({
   const chartData = labels.flatMap((label, index) => [
     {
       value: data.ioKm[index] || 0,
-      frontColor: electricCyan,
+      frontColor: PersonColors.me,
       spacing: INNER_GAP,
       label,
       labelWidth: barWidth * 2 + INNER_GAP,
     },
     {
       value: data.partnerKm[index] || 0,
-      frontColor: lavenderPop,
+      frontColor: PersonColors.partner,
       spacing: GROUP_GAP,
     },
   ]);
@@ -145,13 +143,20 @@ export function YearlyDualBarChart({
 
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: electricCyan }]} />
+          <View
+            style={[styles.legendDot, { backgroundColor: PersonColors.me }]}
+          />
           <ThemedText type="small" style={styles.legendText}>
             Io ({formatDistance(totalIo)})
           </ThemedText>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: lavenderPop }]} />
+          <View
+            style={[
+              styles.legendDot,
+              { backgroundColor: PersonColors.partner },
+            ]}
+          />
           <ThemedText type="small" style={styles.legendText}>
             {shortName(partnerName)} ({formatDistance(totalPartner)})
           </ThemedText>
@@ -221,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     ...Platform.select({
       ios: {
-        shadowColor: electricCyan,
+        shadowColor: PersonColors.me,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.5,
         shadowRadius: 4,
