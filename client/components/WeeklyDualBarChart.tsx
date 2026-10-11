@@ -4,6 +4,7 @@ import { BarChart } from "react-native-gifted-charts";
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { formatDistance } from "@/lib/formatDistance";
+import { shortName } from "@/lib/shortName";
 import { useAppWidth } from "@/hooks/useAppWidth";
 import {
   CHART_EDGE_SPACING,
@@ -23,6 +24,7 @@ interface WeeklyData {
 
 interface WeeklyDualBarChartProps {
   data: WeeklyData;
+  partnerName: string;
 }
 
 const dayLabels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
@@ -31,7 +33,10 @@ const dayInitials = ["L", "M", "M", "G", "V", "S", "D"];
 const INNER_GAP = 2;
 const GROUP_GAP = 12;
 
-export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
+export function WeeklyDualBarChart({
+  data,
+  partnerName,
+}: WeeklyDualBarChartProps) {
   const totalIo = data.ioKm.reduce((sum, km) => sum + km, 0);
   const totalPartner = data.partnerKm.reduce((sum, km) => sum + km, 0);
   const totalTogether = totalIo + totalPartner;
@@ -122,7 +127,7 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: lavenderPop }]} />
           <ThemedText type="small" style={styles.legendText}>
-            Partner ({formatDistance(totalPartner)})
+            {shortName(partnerName)} ({formatDistance(totalPartner)})
           </ThemedText>
         </View>
       </View>

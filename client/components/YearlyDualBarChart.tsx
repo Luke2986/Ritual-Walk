@@ -4,6 +4,7 @@ import { BarChart } from "react-native-gifted-charts";
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { formatDistance } from "@/lib/formatDistance";
+import { shortName } from "@/lib/shortName";
 import { useAppWidth } from "@/hooks/useAppWidth";
 import {
   CHART_EDGE_SPACING,
@@ -23,6 +24,7 @@ interface YearlyData {
 
 interface YearlyDualBarChartProps {
   data: YearlyData;
+  partnerName: string;
 }
 
 const monthLabels = [
@@ -58,7 +60,10 @@ const monthInitials = [
 const INNER_GAP = 2;
 const GROUP_GAP = 6;
 
-export function YearlyDualBarChart({ data }: YearlyDualBarChartProps) {
+export function YearlyDualBarChart({
+  data,
+  partnerName,
+}: YearlyDualBarChartProps) {
   const totalIo = data.ioKm.reduce((sum, km) => sum + km, 0);
   const totalPartner = data.partnerKm.reduce((sum, km) => sum + km, 0);
   const totalTogether = totalIo + totalPartner;
@@ -148,7 +153,7 @@ export function YearlyDualBarChart({ data }: YearlyDualBarChartProps) {
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: lavenderPop }]} />
           <ThemedText type="small" style={styles.legendText}>
-            Partner ({formatDistance(totalPartner)})
+            {shortName(partnerName)} ({formatDistance(totalPartner)})
           </ThemedText>
         </View>
       </View>

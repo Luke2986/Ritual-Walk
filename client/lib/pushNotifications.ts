@@ -25,7 +25,7 @@ export async function getPushRegistration(): Promise<{
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("partner", {
-      name: "Avvisi partner",
+      name: "Avvisi di camminata",
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }

@@ -6,15 +6,15 @@
 
 ## Italiano
 
-App per coppie che vogliono camminare insieme e farne un rituale quotidiano.
+App per camminare in due e farne un rituale quotidiano, con chi vuoi: partner, amicizie, familiari. Il tipo di legame non conta, conta il rituale che costruite.
 
-- **Coppia**: uno dei due genera un _Ritual Code_, l'altro lo inserisce e i due account si collegano.
+- **Rituale a due**: uno genera un _Ritual Code_, l'altra persona lo inserisce e i due account si collegano.
 - **Camminata con GPS**: mappa in tempo reale del percorso (tipo Strava), distanza, tempo, passi, pausa/ripresa e blocco schermo "in tasca".
-- **Storico**: grafici settimana/mese/anno di te e del partner, elenco delle camminate e dettaglio con la mappa del percorso.
-- **Streak di coppia**: i giorni consecutivi in cui almeno uno dei due ha camminato, più il record personale.
+- **Storico**: grafici settimana/mese/anno di entrambi, elenco delle camminate e dettaglio con la mappa del percorso.
+- **Streak condiviso**: i giorni consecutivi in cui almeno uno dei due ha camminato, più il record personale.
 - **Premi**: badge per km totali, streak e numero di camminate.
 - **Promemoria**: notifiche locali nei giorni e all'ora che scegli, riepilogo settimanale e ore silenziose.
-- **Avvisi al partner** (facoltativi): quando finisci una camminata, il partner riceve una notifica, ad esempio "Luca ha appena camminato 3 km".
+- **Avvisi di camminata** (facoltativi): quando finisci una camminata, l'altra persona riceve una notifica, ad esempio "Luca ha appena camminato 3 km".
 - **Account**: recupero della password via email (facoltativo), eliminazione di una singola camminata e dell'intero account direttamente dall'app. Dopo troppi tentativi di accesso sbagliati il login si blocca per 15 minuti.
 
 L'interfaccia è in italiano.
@@ -100,22 +100,22 @@ Con un account Expo gratuito crei un APK da installare sul telefono senza Play S
 
 3. **Build.** Esegui `npx eas-cli@latest build --platform android --profile preview`. A fine build ricevi un link con un QR code: aprilo dal telefono, scarica l'APK e consenti l'installazione da origini sconosciute.
 
-Gli avvisi al partner su Android richiedono anche le credenziali FCM (vedi [Avvisi al partner](#avvisi-al-partner-push-facoltativi)). Il profilo `production` di `eas.json` prepara invece i pacchetti per gli store, con il numero di build che sale da solo; per usarlo imposta le stesse variabili nell'ambiente `production`.
+Gli avvisi di camminata su Android richiedono anche le credenziali FCM (vedi [Avvisi di camminata](#avvisi-di-camminata-push-facoltativi)). Il profilo `production` di `eas.json` prepara invece i pacchetti per gli store, con il numero di build che sale da solo; per usarlo imposta le stesse variabili nell'ambiente `production`.
 
 ### Notifiche
 
 Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmate sul telefono in base alle impostazioni e non serve alcun server di push.
 
-#### Avvisi al partner (push, facoltativi)
+#### Avvisi di camminata (push, facoltativi)
 
-Quando uno dei due finisce una camminata, l'altro riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose del partner. Per attivarli:
+Quando uno dei due finisce una camminata, l'altro riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose di chi la riceve. Per attivarli:
 
 1. Crea un account gratuito su [expo.dev](https://expo.dev) ed esegui `npx eas-cli@latest init`: scrive il _project ID_ in `app.json`, dove lo trovano sia `npm start` sia le build EAS.
 2. In alternativa puoi metterlo in `EAS_PROJECT_ID` nel `.env`, ma vale solo per `npm start` con Expo Go: i comandi `eas` non leggono il `.env`, quindi per le build deve stare in `app.json`.
 3. **iOS:** funziona anche in Expo Go. **Android:** serve una development build o una build per gli store, con le credenziali FCM caricate su EAS (Expo Go per Android non riceve push).
 4. Se nel tuo account Expo hai attivato la _push security_, metti il token in `EXPO_ACCESS_TOKEN` sul server.
 
-Senza project ID la voce "Avvisi partner" resta disattivata e mostra "Non disponibile in questa versione dell'app".
+Senza project ID la voce "Avvisi di camminata" resta disattivata e mostra "Non disponibile in questa versione dell'app".
 
 #### Recupero password (email, facoltativo)
 
@@ -149,15 +149,15 @@ Per un uso commerciale serve un accordo separato con l'autore. Chi ridistribuisc
 
 ## English
 
-An app for couples who want to walk together and make it a daily ritual.
+An app for two people who want to make walking a daily ritual, with whoever you choose: a partner, a friend, a family member. The kind of bond doesn't matter, the ritual you build does.
 
-- **Couple**: one partner generates a _Ritual Code_, the other enters it, and the two accounts are linked.
+- **Ritual for two**: one person generates a _Ritual Code_, the other enters it, and the two accounts are linked.
 - **GPS walks**: live map of your route (like Strava), distance, time, steps, pause/resume and an "in your pocket" screen lock.
-- **History**: weekly/monthly/yearly charts for you and your partner, a list of walks and a detail view with the route map.
-- **Couple streak**: consecutive days on which at least one of you walked, plus your best streak.
+- **History**: weekly/monthly/yearly charts for both of you, a list of walks and a detail view with the route map.
+- **Shared streak**: consecutive days on which at least one of you walked, plus your best streak.
 - **Rewards**: badges for total km, streaks and number of walks.
 - **Reminders**: local notifications on the days and time you choose, a weekly summary and quiet hours.
-- **Partner alerts** (optional): when you finish a walk, your partner gets a notification such as "Luca ha appena camminato 3 km" ("Luca just walked 3 km").
+- **Walk alerts** (optional): when you finish a walk, the other person gets a notification such as "Luca ha appena camminato 3 km" ("Luca just walked 3 km").
 - **Account**: password recovery by email (optional), and deleting a single walk or your whole account right from the app. After too many failed sign-in attempts, login is locked for 15 minutes.
 
 The user interface is in Italian.
@@ -243,22 +243,22 @@ With a free Expo account you can build an APK to install on the phone without th
 
 3. **Build.** Run `npx eas-cli@latest build --platform android --profile preview`. When it finishes you get a link with a QR code: open it on the phone, download the APK and allow installs from unknown sources.
 
-Partner alerts on Android also need FCM credentials (see [Partner alerts](#partner-alerts-push-optional)). The `production` profile in `eas.json` builds the store packages instead, with the build number going up on its own; to use it, set the same variables in the `production` environment.
+Walk alerts on Android also need FCM credentials (see [Walk alerts](#walk-alerts-push-optional)). The `production` profile in `eas.json` builds the store packages instead, with the build number going up on its own; to use it, set the same variables in the `production` environment.
 
 ### Notifications
 
 Reminders and the weekly summary are **local** notifications: they're scheduled on the phone from your settings, so no push server is needed.
 
-#### Partner alerts (push, optional)
+#### Walk alerts (push, optional)
 
-When one partner finishes a walk, the other gets a push notification through Expo's free push service. It isn't sent during the partner's quiet hours. To enable it:
+When one of you finishes a walk, the other gets a push notification through Expo's free push service. It isn't sent during the receiver's quiet hours. To enable it:
 
 1. Create a free account on [expo.dev](https://expo.dev) and run `npx eas-cli@latest init`: it writes the _project ID_ into `app.json`, where both `npm start` and EAS builds find it.
 2. You can put it in `EAS_PROJECT_ID` in `.env` instead, but that only works for `npm start` with Expo Go: `eas` commands don't read `.env`, so builds need it in `app.json`.
 3. **iOS:** works in Expo Go too. **Android:** needs a development build or a store build, with FCM credentials uploaded to EAS (Expo Go on Android can't receive push notifications).
 4. If you turned on _push security_ in your Expo account, put the access token in `EXPO_ACCESS_TOKEN` on the server.
 
-Without a project ID, the "Avvisi partner" (partner alerts) setting stays off and shows "Non disponibile in questa versione dell'app" ("Not available in this version of the app").
+Without a project ID, the "Avvisi di camminata" (walk alerts) setting stays off and shows "Non disponibile in questa versione dell'app" ("Not available in this version of the app").
 
 #### Password recovery (email, optional)
 

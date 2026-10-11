@@ -103,7 +103,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
   const handleDelete = async () => {
     const confirmed = await confirmDestructive(
       "Eliminare la camminata?",
-      "I km verranno tolti dal totale di coppia e lo streak verrà ricalcolato.",
+      "I km verranno tolti dal totale condiviso e lo streak verrà ricalcolato.",
       "Elimina",
     );
     if (!confirmed) return;

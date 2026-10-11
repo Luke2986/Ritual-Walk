@@ -146,12 +146,12 @@ export default function TrackWalkScreen() {
                 />
               </View>
               <ThemedText type="h2" style={styles.heroTitle}>
-                Pronto per il rituale?
+                {"È l'ora del rituale"}
               </ThemedText>
               <ThemedText
                 style={[styles.heroSubtitle, { color: theme.textSecondary }]}
               >
-                Traccia percorso, distanza e passi della vostra camminata
+                Traccia percorso, distanza e passi della tua camminata
               </ThemedText>
             </View>
 

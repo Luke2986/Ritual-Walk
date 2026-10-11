@@ -351,10 +351,10 @@ export default function NotificationsScreen() {
 
           <CategoryRow
             icon="users"
-            title="Avvisi partner"
+            title="Avvisi di camminata"
             description={
               isPushSupported
-                ? `Quando ${partner?.nickname ?? "il partner"} finisce una camminata`
+                ? `Quando ${partner?.nickname ?? "chi cammina con te"} finisce una camminata`
                 : "Non disponibile in questa versione dell'app"
             }
             enabled={prefs?.partnerAlertsEnabled ?? true}

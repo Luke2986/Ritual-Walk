@@ -84,7 +84,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             type="body"
             style={[styles.subtitle, { color: theme.textSecondary }]}
           >
-            Inizia il tuo rituale di coppia
+            Inizia il tuo rituale a due
           </ThemedText>
         </View>
 
@@ -139,7 +139,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
         <View style={styles.footer}>
           <ThemedText type="body" style={{ color: theme.textSecondary }}>
-            Hai gia un account?
+            Hai già un account?
           </ThemedText>
           <Pressable onPress={() => navigation.goBack()}>
             <ThemedText type="link" style={{ color: theme.secondary }}>

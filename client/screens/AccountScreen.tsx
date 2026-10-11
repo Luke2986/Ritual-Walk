@@ -138,7 +138,7 @@ export default function AccountScreen() {
     if (couple?.ritualCode) {
       await Clipboard.setStringAsync(couple.ritualCode);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Copiato!", "Il Ritual Code e stato copiato negli appunti");
+      Alert.alert("Copiato!", "Il Ritual Code è stato copiato negli appunti");
     }
   };
 
@@ -146,7 +146,7 @@ export default function AccountScreen() {
     if (couple?.ritualCode) {
       try {
         await Share.share({
-          message: `Unisciti a me su Step Ritual! Il mio codice invito e: ${couple.ritualCode}`,
+          message: `Camminiamo insieme su Step Ritual? Il mio codice invito è: ${couple.ritualCode}`,
         });
       } catch (error) {
         handleCopyCode();
@@ -181,30 +181,10 @@ export default function AccountScreen() {
       await joinCouple(ritualCodeInput.trim().toUpperCase());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRitualCodeInput("");
-      Alert.alert("Collegato!", "Ora sei collegato con il tuo partner");
+      Alert.alert("Fatto!", "Collegamento riuscito: ora camminate insieme");
     } catch (error: any) {
-      let errorMessage = "Errore nel collegamento";
-      if (error.message.includes("scaduto")) {
-        errorMessage = "Il codice e scaduto";
-      } else if (
-        error.message.includes("non valido") ||
-        error.message.includes("INVALID")
-      ) {
-        errorMessage = "Codice non valido";
-      } else if (
-        error.message.includes("usato") ||
-        error.message.includes("USED")
-      ) {
-        errorMessage = "Questo codice e gia stato usato";
-      } else if (
-        error.message.includes("te stesso") ||
-        error.message.includes("SELF")
-      ) {
-        errorMessage = "Non puoi collegarti con te stesso";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      Alert.alert("Errore", errorMessage);
+      // The server already sends a readable Italian message for every join error.
+      Alert.alert("Errore", error.message || "Errore nel collegamento");
     } finally {
       setIsJoining(false);
     }
@@ -215,12 +195,12 @@ export default function AccountScreen() {
 
     // Use window.confirm on web for better compatibility
     if (Platform.OS === "web") {
-      const confirmed = window.confirm("Sei sicuro di voler uscire?");
+      const confirmed = window.confirm("Vuoi davvero uscire?");
       if (confirmed) {
         await logout();
       }
     } else {
-      Alert.alert("Esci", "Sei sicuro di voler uscire?", [
+      Alert.alert("Esci", "Vuoi davvero uscire?", [
         { text: "Annulla", style: "cancel" },
         {
           text: "Esci",
@@ -239,11 +219,14 @@ export default function AccountScreen() {
       try {
         await unpairCouple();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Rituale interrotto", "Sei tornato single.");
+        Alert.alert(
+          "Rituale interrotto",
+          "Il collegamento è chiuso. Le tue camminate restano salvate.",
+        );
       } catch (error: any) {
         Alert.alert(
           "Errore",
-          error.message || "Impossibile scollegare il partner",
+          error.message || "Impossibile interrompere il collegamento",
         );
       } finally {
         setIsUnpairing(false);
@@ -252,7 +235,7 @@ export default function AccountScreen() {
 
     if (Platform.OS === "web") {
       const confirmed = window.confirm(
-        "Interrompere il Rituale?\n\nTornerete entrambi single. Non vedrete piu statistiche condivise ne confronto. Le tue camminate resteranno salvate.",
+        "Interrompere il Rituale?\n\nNon vedrete più statistiche condivise né il confronto. Le tue camminate resteranno salvate.",
       );
       if (confirmed) {
         await performUnpair();
@@ -260,11 +243,11 @@ export default function AccountScreen() {
     } else {
       Alert.alert(
         "Interrompere il Rituale?",
-        "Tornerete entrambi single. Non vedrete piu statistiche condivise ne confronto. Le tue camminate resteranno salvate.",
+        "Non vedrete più statistiche condivise né il confronto. Le tue camminate resteranno salvate.",
         [
           { text: "Annulla", style: "cancel" },
           {
-            text: "Si, scollega",
+            text: "Sì, interrompi",
             style: "destructive",
             onPress: performUnpair,
           },
@@ -310,16 +293,16 @@ export default function AccountScreen() {
 
     if (Platform.OS === "web") {
       const confirmed = window.confirm(
-        "Annullare l'invito?\n\nIl codice non sara piu valido.",
+        "Annullare l'invito?\n\nIl codice non sarà più valido.",
       );
       if (confirmed) {
         await performCancel();
       }
     } else {
-      Alert.alert("Annullare l'invito?", "Il codice non sara piu valido.", [
+      Alert.alert("Annullare l'invito?", "Il codice non sarà più valido.", [
         { text: "No", style: "cancel" },
         {
-          text: "Si, annulla",
+          text: "Sì, annulla",
           style: "destructive",
           onPress: performCancel,
         },
@@ -406,13 +389,13 @@ export default function AccountScreen() {
                     </View>
                     <View style={styles.partnerDetails}>
                       <ThemedText style={styles.partnerLabel}>
-                        IL TUO PARTNER
+                        CAMMINI CON
                       </ThemedText>
                       <ThemedText style={styles.partnerName}>
                         {partner.nickname}
                       </ThemedText>
                     </View>
-                    <Feather name="heart" size={20} color="#FF4D6D" />
+                    <Feather name="users" size={20} color="#FF4D6D" />
                   </View>
                 </>
               );
@@ -432,7 +415,7 @@ export default function AccountScreen() {
                           style={[styles.statusDot, styles.statusDotWaiting]}
                         />
                         <ThemedText style={styles.ritualStatusText}>
-                          In attesa del partner
+                          Codice in attesa
                         </ThemedText>
                       </View>
                     </View>
@@ -535,8 +518,8 @@ export default function AccountScreen() {
                     </ThemedText>
                     <ThemedText style={styles.noCoupleText}>
                       {isExpired
-                        ? "Il codice invito e scaduto. Genera un nuovo codice per invitare il tuo partner."
-                        : "C'e stato un problema con l'invito. Genera un nuovo codice."}
+                        ? "Il codice invito è scaduto. Generane uno nuovo e condividilo."
+                        : "C'è stato un problema con l'invito. Genera un nuovo codice."}
                     </ThemedText>
                     <View style={styles.expiredActions}>
                       <Pressable
@@ -595,11 +578,11 @@ export default function AccountScreen() {
               <View style={styles.noCoupleContainer}>
                 <Feather name="users" size={32} color="#B88BFF" />
                 <ThemedText style={styles.noCoupleTitle}>
-                  Collega il tuo Partner
+                  Cammina con qualcuno
                 </ThemedText>
                 <ThemedText style={styles.noCoupleText}>
-                  Genera un codice invito da condividere o inserisci il codice
-                  del partner
+                  Genera un codice invito da condividere con la persona con cui
+                  vuoi camminare, oppure inserisci quello che hai ricevuto
                 </ThemedText>
 
                 <View style={styles.joinSection}>
@@ -706,7 +689,7 @@ export default function AccountScreen() {
                 <Feather name="alert-triangle" size={20} color="#FF2FB3" />
                 <View style={styles.dangerTextContainer}>
                   <ThemedText style={styles.dangerTitle}>
-                    Gestione legame
+                    Collegamento
                   </ThemedText>
                   <ThemedText style={styles.dangerDescription}>
                     Scollega il tuo account da {partner.nickname}
@@ -727,7 +710,7 @@ export default function AccountScreen() {
                   <>
                     <Feather name="user-x" size={16} color="#FFFFFF" />
                     <ThemedText style={styles.unpairButtonText}>
-                      Scollega partner
+                      Interrompi il rituale
                     </ThemedText>
                   </>
                 )}

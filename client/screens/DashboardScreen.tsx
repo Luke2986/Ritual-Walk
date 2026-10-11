@@ -153,7 +153,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     <View style={styles.headerContent}>
       <View style={styles.greeting}>
         <ThemedText type="body" style={styles.welcomeText}>
-          Benvenuto,
+          Ciao,
         </ThemedText>
         <ThemedText type="h2" style={styles.userName}>
           {user?.nickname}
@@ -200,9 +200,9 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
             <View style={{ width: Spacing.lg }} />
             {partner ? (
               <StatCard
-                label="Partner"
+                label="Cammini con"
                 value={partner.nickname}
-                icon="heart"
+                icon="users"
                 color="#FF1493"
               />
             ) : (
@@ -221,7 +221,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                     <Feather name="user-plus" size={22} color="#FF1493" />
                   </View>
                   <ThemedText type="small" style={styles.inviteLabel}>
-                    PARTNER
+                    CAMMINI CON
                   </ThemedText>
                   <ThemedText style={styles.inviteText}>In attesa</ThemedText>
                   <View style={styles.inviteButton}>
@@ -237,6 +237,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           <View style={styles.calendarSection}>
             <WeeklyProgressCalendar
               activityData={activityData}
+              partnerName={partner?.nickname ?? "Partner"}
               onPress={() => {
                 rootNavigation.navigate("HistoryTab", {
                   screen: "History",
@@ -252,7 +253,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         </>
       ) : (
         <NeonCard
-          title="Collega il Partner"
+          title="Cammina con qualcuno"
           onPress={handleInvitePartner}
           variant="highlight"
           style={styles.connectCard}
@@ -262,7 +263,8 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
             type="body"
             style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
           >
-            Crea o inserisci un Ritual Code per collegare il tuo partner
+            Crea un Ritual Code e condividilo con la persona con cui vuoi
+            camminare, oppure inserisci quello che hai ricevuto
           </ThemedText>
           <View style={styles.connectButton}>
             <Feather name="plus" size={18} color="#FFFFFF" />
@@ -279,7 +281,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     <EmptyState
       icon="map-pin"
       title="Nessuna camminata"
-      description="Inizia una nuova camminata per vedere le tue attivita qui"
+      description="Inizia una nuova camminata per vedere le tue attività qui"
     />
   );
 

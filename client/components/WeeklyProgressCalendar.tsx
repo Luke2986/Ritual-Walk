@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { ActivityByDate } from "@/components/ProgressCalendar";
+import { shortName } from "@/lib/shortName";
 
 const electricCyan = "#00E5FF";
 const lavenderPop = "#B88BFF";
@@ -15,6 +16,7 @@ const dayLabels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
 interface WeeklyProgressCalendarProps {
   activityData: ActivityByDate;
+  partnerName: string;
   onPress?: () => void;
 }
 
@@ -40,6 +42,7 @@ function getWeekDates(): { date: string; day: number; isToday: boolean }[] {
 
 export function WeeklyProgressCalendar({
   activityData,
+  partnerName,
   onPress,
 }: WeeklyProgressCalendarProps) {
   const weekDates = getWeekDates();
@@ -113,7 +116,7 @@ export function WeeklyProgressCalendar({
         <View style={styles.legendItem}>
           <View style={[styles.legendBar, { backgroundColor: lavenderPop }]} />
           <ThemedText type="small" style={styles.legendText}>
-            Partner
+            {shortName(partnerName)}
           </ThemedText>
         </View>
         <View style={styles.legendItem}>

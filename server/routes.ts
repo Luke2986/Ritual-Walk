@@ -280,7 +280,7 @@ export function registerRoutes(app: Express): void {
       const data = registerSchema.parse(req.body);
 
       if (await storage.getUserByEmail(data.email)) {
-        return res.status(400).json({ error: "Email gia registrata" });
+        return res.status(400).json({ error: "Email già registrata" });
       }
 
       let user: User;
@@ -292,7 +292,7 @@ export function registerRoutes(app: Express): void {
         });
       } catch (error) {
         if (isUniqueViolation(error)) {
-          return res.status(400).json({ error: "Email gia registrata" });
+          return res.status(400).json({ error: "Email già registrata" });
         }
         throw error;
       }
@@ -479,7 +479,7 @@ export function registerRoutes(app: Express): void {
         if (existing?.status === "active") {
           return res.status(409).json({
             error: "ALREADY_PAIRED",
-            message: "Sei gia collegato a un partner",
+            message: "Il tuo account è già collegato a un'altra persona",
           });
         }
 
@@ -561,7 +561,7 @@ export function registerRoutes(app: Express): void {
     if (couple.status !== "pending") {
       res.status(409).json({
         error: "NOT_PENDING",
-        message: "L'invito non e in sospeso",
+        message: "L'invito non è in sospeso",
       });
       return null;
     }
@@ -621,11 +621,17 @@ export function registerRoutes(app: Express): void {
   );
 
   const JOIN_ERRORS = {
-    CODE_ALREADY_USED: [409, "Questo codice e gia stato usato"],
-    CODE_EXPIRED: [410, "Il codice e scaduto"],
-    INVITE_NO_LONGER_VALID: [409, "Questo invito non e piu valido"],
-    USER_ALREADY_PAIRED: [409, "Sei gia collegato a un partner"],
-    CANNOT_PAIR_WITH_SELF: [400, "Non puoi collegarti con te stesso"],
+    CODE_ALREADY_USED: [409, "Questo codice è già stato usato"],
+    CODE_EXPIRED: [410, "Il codice è scaduto"],
+    INVITE_NO_LONGER_VALID: [409, "Questo invito non è più valido"],
+    USER_ALREADY_PAIRED: [
+      409,
+      "Il tuo account è già collegato a un'altra persona",
+    ],
+    CANNOT_PAIR_WITH_SELF: [
+      400,
+      "Questo è il tuo codice: condividilo con chi vuoi invitare",
+    ],
   } as const;
 
   app.post(
@@ -673,7 +679,7 @@ export function registerRoutes(app: Express): void {
       if (!user.coupleId) {
         return res.status(409).json({
           error: "NOT_PAIRED",
-          message: "Non sei collegato a nessun partner",
+          message: "Il tuo account non è collegato a nessuno",
         });
       }
 
@@ -684,7 +690,7 @@ export function registerRoutes(app: Express): void {
       if (!unpaired) {
         return res.status(409).json({
           error: "COUPLE_NOT_ACTIVE",
-          message: "La coppia non e attiva",
+          message: "Il rituale non è attivo",
         });
       }
 
@@ -724,7 +730,7 @@ export function registerRoutes(app: Express): void {
         const message = {
           NOT_FOUND: "Camminata non trovata",
           FORBIDDEN: "Non autorizzato",
-          ALREADY_ENDED: "Camminata gia salvata",
+          ALREADY_ENDED: "Camminata già salvata",
         }[result.code];
         return res.status(status).json({ error: result.code, message });
       }

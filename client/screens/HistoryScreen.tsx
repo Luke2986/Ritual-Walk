@@ -116,17 +116,24 @@ export default function HistoryScreen() {
     );
   }, [statsData]);
 
+  const partnerName = partner?.nickname ?? "Partner";
   const nicknameOf = (userId: string) =>
-    userId === user?.id ? user.nickname : (partner?.nickname ?? "Partner");
+    userId === user?.id ? user.nickname : partnerName;
 
   const renderChart = () => {
     switch (timeRange) {
       case "week":
-        return <WeeklyDualBarChart data={weeklyStats} />;
+        return (
+          <WeeklyDualBarChart data={weeklyStats} partnerName={partnerName} />
+        );
       case "month":
-        return <MonthlyDualBarChart data={monthlyStats} />;
+        return (
+          <MonthlyDualBarChart data={monthlyStats} partnerName={partnerName} />
+        );
       case "year":
-        return <YearlyDualBarChart data={yearlyStats} />;
+        return (
+          <YearlyDualBarChart data={yearlyStats} partnerName={partnerName} />
+        );
       default:
         return null;
     }
@@ -149,8 +156,8 @@ export default function HistoryScreen() {
         >
           <EmptyState
             icon="heart"
-            title="Collega il Partner"
-            description="Devi collegare il tuo partner per vedere le statistiche"
+            title="Nessun collegamento"
+            description="Collega il tuo account a chi cammina con te per vedere le statistiche insieme"
           />
         </View>
       </LinearGradient>
