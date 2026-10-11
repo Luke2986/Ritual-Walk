@@ -7,6 +7,7 @@ import HistoryStackNavigator from "@/navigation/HistoryStackNavigator";
 import PremiStackNavigator from "@/navigation/PremiStackNavigator";
 import AccountStackNavigator from "@/navigation/AccountStackNavigator";
 import CustomTabBar from "@/components/CustomTabBar";
+import { useNotificationSync } from "@/hooks/useNotificationSync";
 
 export type MainTabParamList = {
   DashboardTab: undefined;
@@ -19,6 +20,8 @@ export type MainTabParamList = {
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
+  useNotificationSync();
+
   return (
     <Tab.Navigator
       initialRouteName="DashboardTab"
@@ -29,7 +32,11 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen name="DashboardTab" component={DashboardStackNavigator} />
       <Tab.Screen name="PremiTab" component={PremiStackNavigator} />
-      <Tab.Screen name="TrackTab" component={TrackStackNavigator} />
+      <Tab.Screen
+        name="TrackTab"
+        component={TrackStackNavigator}
+        options={{ lazy: false }}
+      />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} />
       <Tab.Screen name="AccountTab" component={AccountStackNavigator} />
     </Tab.Navigator>

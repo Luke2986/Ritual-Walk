@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
+import { Feather } from "@expo/vector-icons";
 import { RouteProp } from "@react-navigation/native";
 
 import {
@@ -16,10 +17,10 @@ import { StatCard } from "@/components/StatCard";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, Colors, BorderRadius } from "@/constants/theme";
-import { HistoryStackParamList } from "@/navigation/HistoryStackNavigator";
+import { EmptyState } from "@/components/EmptyState";
 
 type WalkDetailScreenProps = {
-  route: RouteProp<HistoryStackParamList, "WalkDetail">;
+  route: RouteProp<{ WalkDetail: { walkId: string } }, "WalkDetail">;
 };
 
 interface WalkDetail {
@@ -38,7 +39,11 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
-  const { data: walk, isLoading } = useQuery<WalkDetail>({
+  const {
+    data: walk,
+    isLoading,
+    isError,
+  } = useQuery<WalkDetail>({
     queryKey: ["/api/walks", walkId],
   });
 
@@ -63,18 +68,9 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
     });
   };
 
-  const getMapRegion = () => {
-    if (!walk?.pathJson || walk.pathJson.length === 0) {
-      return {
-        latitude: 41.9028,
-        longitude: 12.4964,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    }
-
-    const lats = walk.pathJson.map((p) => p.latitude);
-    const lngs = walk.pathJson.map((p) => p.longitude);
+  const getMapRegion = (path: { latitude: number; longitude: number }[]) => {
+    const lats = path.map((p) => p.latitude);
+    const lngs = path.map((p) => p.longitude);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs);
@@ -83,14 +79,31 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
     return {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
-      latitudeDelta: (maxLat - minLat) * 1.5 || 0.01,
-      longitudeDelta: (maxLng - minLng) * 1.5 || 0.01,
+      latitudeDelta: Math.max((maxLat - minLat) * 1.4, 0.005),
+      longitudeDelta: Math.max((maxLng - minLng) * 1.4, 0.005),
     };
   };
+
+  if (isError) {
+    return (
+      <LinearGradient
+        colors={[theme.backgroundRoot, theme.backgroundDefault]}
+        style={[styles.gradient, styles.centered]}
+      >
+        <EmptyState
+          icon="alert-circle"
+          title="Camminata non disponibile"
+          description="Controlla la connessione e riprova"
+        />
+      </LinearGradient>
+    );
+  }
 
   if (isLoading || !walk) {
     return <LoadingScreen />;
   }
+
+  const path = walk.pathJson ?? [];
 
   const speed =
     walk.durationSeconds > 0
@@ -121,34 +134,43 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
         </View>
 
         <View style={styles.mapContainer}>
-          <MapViewCompat
-            style={styles.map}
-            initialRegion={getMapRegion()}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            rotateEnabled={false}
-            pitchEnabled={false}
-          >
-            {walk.pathJson && walk.pathJson.length > 1 ? (
-              <>
-                <PolylineCompat
-                  coordinates={walk.pathJson}
-                  strokeColor={theme.primary}
-                  strokeWidth={4}
-                />
-                <MarkerCompat
-                  coordinate={walk.pathJson[0]}
-                  title="Inizio"
-                  pinColor={Colors.dark.success}
-                />
-                <MarkerCompat
-                  coordinate={walk.pathJson[walk.pathJson.length - 1]}
-                  title="Fine"
-                  pinColor={Colors.dark.error}
-                />
-              </>
-            ) : null}
-          </MapViewCompat>
+          {path.length > 1 ? (
+            <MapViewCompat
+              style={styles.map}
+              initialRegion={getMapRegion(path)}
+            >
+              <PolylineCompat
+                coordinates={path}
+                strokeColor={theme.primary}
+                strokeWidth={4}
+              />
+              <MarkerCompat
+                coordinate={path[0]}
+                title="Inizio"
+                pinColor={Colors.dark.success}
+              />
+              <MarkerCompat
+                coordinate={path[path.length - 1]}
+                title="Fine"
+                pinColor={Colors.dark.error}
+              />
+            </MapViewCompat>
+          ) : (
+            <View
+              style={[
+                styles.noPath,
+                { backgroundColor: theme.backgroundSecondary },
+              ]}
+            >
+              <Feather name="map" size={36} color={theme.textSecondary} />
+              <ThemedText
+                type="small"
+                style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
+              >
+                Percorso GPS non disponibile per questa camminata
+              </ThemedText>
+            </View>
+          )}
         </View>
 
         <View style={styles.statsGrid}>
@@ -195,6 +217,16 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+  },
+  centered: {
+    justifyContent: "center",
+    paddingHorizontal: Spacing.lg,
+  },
+  noPath: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.lg,
   },
   container: {
     flex: 1,

@@ -15,7 +15,8 @@
         "UIBackgroundModes": ["location"],
         "NSLocationWhenInUseUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche in background.",
-        "NSLocationAlwaysUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche quando l'app e in background."
+        "NSLocationAlwaysUsageDescription": "Step Ritual ha bisogno della tua posizione per continuare a tracciare le tue camminate quando l'app è in background.",
+        "NSMotionUsageDescription": "Step Ritual usa il sensore di movimento per contare i passi durante le camminate."
       }
     },
     "android": {
@@ -31,7 +32,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "ACTIVITY_RECOGNITION"
       ]
     },
     "web": {
@@ -57,9 +59,16 @@
         {
           "locationWhenInUsePermission": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate.",
           "locationAlwaysAndWhenInUsePermission": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche in background.",
-          "locationAlwaysPermission": "Step Ritual ha bisogno della tua posizione per continuare a tracciare le tue camminate quando l'app e in background.",
+          "locationAlwaysPermission": "Step Ritual ha bisogno della tua posizione per continuare a tracciare le tue camminate quando l'app è in background.",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Step Ritual usa il sensore di movimento per contare i passi durante le camminate."
         }
       ]
     ],

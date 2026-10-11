@@ -24,23 +24,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
+import type { NotificationPrefs } from "@/lib/notifications";
 import type { AccountStackParamList } from "@/navigation/AccountStackNavigator";
-
-interface NotificationPrefs {
-  notificationsEnabled: boolean;
-  remindersEnabled: boolean;
-  reminderTime: string;
-  reminderDays: number[];
-  reminderMessage: string | null;
-  partnerAlertsEnabled: boolean;
-  badgesEnabled: boolean;
-  weeklySummaryEnabled: boolean;
-  weeklySummaryDay: number;
-  weeklySummaryTime: string;
-  quietHoursEnabled: boolean;
-  quietStart: string;
-  quietEnd: string;
-}
 
 type NavigationProp = NativeStackNavigationProp<AccountStackParamList>;
 
@@ -355,7 +340,7 @@ export default function NotificationsScreen() {
             }
             enabled={prefs?.remindersEnabled ?? true}
             onToggle={(v) => handleCategoryToggle("remindersEnabled", v)}
-            onPress={() => navigation.navigate("ReminderSettings" as any)}
+            onPress={() => navigation.navigate("ReminderSettings")}
             disabled={!masterEnabled}
           />
 
@@ -364,10 +349,10 @@ export default function NotificationsScreen() {
           <CategoryRow
             icon="users"
             title="Avvisi partner"
-            description={prefs?.partnerAlertsEnabled ? "Attivi" : "Disattivati"}
-            enabled={prefs?.partnerAlertsEnabled ?? true}
-            onToggle={(v) => handleCategoryToggle("partnerAlertsEnabled", v)}
-            disabled={!masterEnabled}
+            description="Presto disponibile"
+            enabled={false}
+            onToggle={() => {}}
+            disabled
           />
 
           <View style={styles.divider} />
@@ -375,10 +360,10 @@ export default function NotificationsScreen() {
           <CategoryRow
             icon="award"
             title="Streak e badge"
-            description={prefs?.badgesEnabled ? "Attivi" : "Disattivati"}
-            enabled={prefs?.badgesEnabled ?? true}
-            onToggle={(v) => handleCategoryToggle("badgesEnabled", v)}
-            disabled={!masterEnabled}
+            description="Presto disponibile"
+            enabled={false}
+            onToggle={() => {}}
+            disabled
           />
 
           <View style={styles.divider} />
@@ -393,7 +378,7 @@ export default function NotificationsScreen() {
             }
             enabled={prefs?.weeklySummaryEnabled ?? true}
             onToggle={(v) => handleCategoryToggle("weeklySummaryEnabled", v)}
-            onPress={() => navigation.navigate("WeeklySummarySettings" as any)}
+            onPress={() => navigation.navigate("WeeklySummarySettings")}
             disabled={!masterEnabled}
           />
         </View>
@@ -410,7 +395,7 @@ export default function NotificationsScreen() {
             }
             enabled={prefs?.quietHoursEnabled ?? false}
             onToggle={(v) => handleCategoryToggle("quietHoursEnabled", v)}
-            onPress={() => navigation.navigate("QuietHoursSettings" as any)}
+            onPress={() => navigation.navigate("QuietHoursSettings")}
             disabled={!masterEnabled}
           />
         </View>

@@ -1,260 +1,366 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { AppState, AppStateStatus, Platform } from "react-native";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Platform } from "react-native";
 import { Pedometer } from "expo-sensors";
 import * as Haptics from "expo-haptics";
-import { apiRequest } from "@/lib/query-client";
+import { apiRequest, ApiError, queryClient } from "@/lib/query-client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  trackingService,
+  elapsedSeconds,
+  pathDistanceKm,
+  simplifyPath,
+  type ActiveSession,
+  type GpsMode,
+  type TrackPoint,
+} from "@/lib/tracking";
+import { toLocalDateKey } from "@shared/dates";
 
-export type SessionState = "idle" | "running" | "locked" | "summary";
-
-export interface WalkSessionData {
-  steps: number;
-  distanceKm: number;
-  durationSeconds: number;
-  startTime: number | null;
-}
-
-interface UseWalkSessionReturn {
-  sessionState: SessionState;
-  steps: number;
-  distanceKm: number;
-  durationSeconds: number;
-  isLocked: boolean;
-  isPedometerAvailable: boolean;
-  startSession: () => Promise<boolean>;
-  stopSession: () => void;
-  toggleLock: () => void;
-  unlock: () => void;
-  confirmSummary: () => Promise<void>;
-  dismissSummary: () => void;
-  formatDuration: (seconds: number) => string;
-  formatDurationAccessible: (seconds: number) => string;
-}
+export type SessionState =
+  | "idle"
+  | "starting"
+  | "running"
+  | "paused"
+  | "summary";
 
 const STEP_LENGTH_KM = 0.0007;
+const MAX_PATH_POINTS = 5000;
+const POINT_POLL_MS = 2000;
+const STEP_SAVE_MS = 15000;
 
-export function useWalkSession(): UseWalkSessionReturn {
+function haptic(type: Haptics.NotificationFeedbackType) {
+  Haptics.notificationAsync(type).catch(() => {});
+}
+
+export function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
+export function formatDurationAccessible(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} ${hours === 1 ? "ora" : "ore"}`);
+  if (minutes > 0)
+    parts.push(`${minutes} ${minutes === 1 ? "minuto" : "minuti"}`);
+  if (secs > 0 || parts.length === 0)
+    parts.push(`${secs} ${secs === 1 ? "secondo" : "secondi"}`);
+
+  return parts.join(" e ");
+}
+
+export function useWalkSession() {
   const { refreshUser } = useAuth();
 
   const [sessionState, setSessionState] = useState<SessionState>("idle");
-  const [steps, setSteps] = useState(0);
-  const [durationSeconds, setDurationSeconds] = useState(0);
+  const [isReady, setIsReady] = useState(false);
+  const [session, setSession] = useState<ActiveSession | null>(null);
+  const [points, setPoints] = useState<TrackPoint[]>([]);
+  const [gpsMode, setGpsMode] = useState<GpsMode>("off");
+  const [stepsBase, setStepsBase] = useState(0);
+  const [liveSteps, setLiveSteps] = useState(0);
+  const [now, setNow] = useState(Date.now());
   const [isLocked, setIsLocked] = useState(false);
-  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
-  const [walkId, setWalkId] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [initialSteps, setInitialSteps] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const pedometerSubscription = useRef<any>(null);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const summaryDataRef = useRef<WalkSessionData | null>(null);
+  const pedometerRef = useRef<{ remove: () => void } | null>(null);
+  const pedometerGenRef = useRef(0);
+  const lastPointIdRef = useRef(0);
 
-  const distanceKm = steps * STEP_LENGTH_KM;
-
+  const steps = stepsBase + liveSteps;
+  const stepsRef = useRef(steps);
   useEffect(() => {
-    Pedometer.isAvailableAsync().then(setIsPedometerAvailable);
+    stepsRef.current = steps;
+  }, [steps]);
+
+  const gpsDistanceKm = useMemo(() => pathDistanceKm(points), [points]);
+  const distanceKm =
+    points.length >= 2 ? gpsDistanceKm : steps * STEP_LENGTH_KM;
+  const durationSeconds = session ? elapsedSeconds(session, now) : 0;
+
+  const stopPedometer = useCallback(() => {
+    pedometerGenRef.current += 1;
+    pedometerRef.current?.remove();
+    pedometerRef.current = null;
   }, []);
 
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (
-        appStateRef.current.match(/inactive|background/) &&
-        nextAppState === "active" &&
-        sessionState === "running" &&
-        startTime
-      ) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        setDurationSeconds(elapsed);
+  // watchStepCount reports steps since subscribing, so each running stretch adds to stepsBase.
+  const startPedometer = useCallback(async () => {
+    stopPedometer();
+    if (Platform.OS === "web") return;
+    const gen = pedometerGenRef.current;
+    const available = await Pedometer.isAvailableAsync().catch(() => false);
+    // Paused or stopped while we were waiting.
+    if (!available || gen !== pedometerGenRef.current) return;
+    setLiveSteps(0);
+    pedometerRef.current = Pedometer.watchStepCount((result) => {
+      setLiveSteps(result.steps);
+    });
+  }, [stopPedometer]);
 
-        if (Platform.OS === "ios" && isPedometerAvailable) {
-          try {
-            const result = await Pedometer.getStepCountAsync(
-              new Date(startTime),
-              new Date(),
-            );
-            setSteps(result.steps);
-          } catch (error) {
-            console.error("Error fetching step count:", error);
-          }
-        }
-      }
-      appStateRef.current = nextAppState;
-    };
+  const commitSteps = useCallback(() => {
+    stopPedometer();
+    const total = stepsRef.current;
+    setStepsBase(total);
+    setLiveSteps(0);
+    return total;
+  }, [stopPedometer]);
 
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
+  const pullNewPoints = useCallback(async (walkId: string) => {
+    const fresh = await trackingService.getPoints(
+      walkId,
+      lastPointIdRef.current,
     );
-    return () => subscription?.remove();
-  }, [sessionState, startTime, isPedometerAvailable]);
+    // Polling and pause/stop can pull concurrently; keep each point once.
+    const unseen = fresh.filter((p) => p.id > lastPointIdRef.current);
+    if (unseen.length === 0) return;
+    lastPointIdRef.current = unseen[unseen.length - 1].id;
+    setPoints((prev) => [...prev, ...unseen]);
+  }, []);
 
-  const startSession = useCallback(async (): Promise<boolean> => {
+  const reset = useCallback(() => {
+    stopPedometer();
+    lastPointIdRef.current = 0;
+    setSession(null);
+    setPoints([]);
+    setStepsBase(0);
+    setLiveSteps(0);
+    setGpsMode("off");
+    setIsLocked(false);
+    setSaveError(null);
+    setSessionState("idle");
+  }, [stopPedometer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const restored = await trackingService.restore();
+        if (cancelled || !restored) return;
+
+        const { session: saved, gps } = restored;
+        const savedPoints = await trackingService.getPoints(saved.walkId);
+        if (cancelled) return;
+
+        lastPointIdRef.current = savedPoints[savedPoints.length - 1]?.id ?? 0;
+        setPoints(savedPoints);
+        setSession(saved);
+        setStepsBase(saved.steps);
+        setGpsMode(gps);
+        if (saved.endedAt !== null) {
+          setSessionState("summary");
+        } else if (saved.pausedAt !== null) {
+          setSessionState("paused");
+        } else {
+          setSessionState("running");
+          startPedometer();
+        }
+      } catch (error) {
+        console.warn("Could not restore walk:", error);
+      } finally {
+        if (!cancelled) setIsReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [startPedometer]);
+
+  const walkId = session?.walkId;
+
+  useEffect(() => {
+    if (sessionState !== "running" || !walkId) return;
+
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    const poll = setInterval(() => {
+      pullNewPoints(walkId).catch(() => {});
+    }, POINT_POLL_MS);
+    const saveStepsTimer = setInterval(() => {
+      trackingService.saveSteps(stepsRef.current).catch(() => {});
+    }, STEP_SAVE_MS);
+
+    return () => {
+      clearInterval(tick);
+      clearInterval(poll);
+      clearInterval(saveStepsTimer);
+    };
+  }, [sessionState, walkId, pullNewPoints]);
+
+  useEffect(() => stopPedometer, [stopPedometer]);
+
+  const startSession = useCallback(async (): Promise<GpsMode> => {
+    setSessionState("starting");
     try {
       const response = await apiRequest("POST", "/api/walks/start");
-      const data = await response.json();
-      const newWalkId = data.walk.id;
+      const { walk } = await response.json();
 
-      setWalkId(newWalkId);
-      setSteps(0);
-      setDurationSeconds(0);
-      setIsLocked(false);
-      const now = Date.now();
-      setStartTime(now);
-      setSessionState("running");
-
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {}
-
-      timerRef.current = setInterval(() => {
-        setDurationSeconds((prev) => prev + 1);
-      }, 1000);
-
-      if (isPedometerAvailable) {
-        try {
-          const result = await Pedometer.getStepCountAsync(
-            new Date(now - 1000),
-            new Date(now),
-          );
-          setInitialSteps(result.steps || 0);
-        } catch {}
-
-        pedometerSubscription.current = Pedometer.watchStepCount(
-          (result: { steps: number }) => {
-            setSteps(result.steps);
-          },
-        );
+      if (Platform.OS !== "web") {
+        await Pedometer.requestPermissionsAsync().catch(() => null);
       }
 
-      return true;
+      const startedAt = Date.now();
+      const gps = await trackingService.start(walk.id, startedAt);
+
+      lastPointIdRef.current = 0;
+      setPoints([]);
+      setStepsBase(0);
+      setLiveSteps(0);
+      setIsLocked(false);
+      setSaveError(null);
+      setGpsMode(gps);
+      setNow(startedAt);
+      setSession({
+        walkId: walk.id,
+        startedAt,
+        pausedMs: 0,
+        pausedAt: null,
+        endedAt: null,
+        segment: 0,
+        steps: 0,
+      });
+      setSessionState("running");
+      startPedometer();
+      haptic(Haptics.NotificationFeedbackType.Success);
+      return gps;
     } catch (error) {
-      console.error("Error starting session:", error);
-      return false;
+      setSessionState("idle");
+      throw error;
     }
-  }, [isPedometerAvailable]);
+  }, [startPedometer]);
 
-  const stopSession = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+  const pauseSession = useCallback(async () => {
+    if (sessionState !== "running") return;
+    const total = commitSteps();
+    const pausedAt = Date.now();
+    setSession((s) => (s ? { ...s, pausedAt, steps: total } : s));
+    setNow(pausedAt);
+    setSessionState("paused");
+    await trackingService.pause(total);
+    if (walkId) await pullNewPoints(walkId).catch(() => {});
+  }, [sessionState, commitSteps, walkId, pullNewPoints]);
 
-    if (pedometerSubscription.current) {
-      pedometerSubscription.current.remove();
-      pedometerSubscription.current = null;
-    }
+  const resumeSession = useCallback(async () => {
+    if (sessionState !== "paused") return;
+    const resumedAt = Date.now();
+    setSession((s) =>
+      s && s.pausedAt !== null
+        ? {
+            ...s,
+            pausedMs: s.pausedMs + (resumedAt - s.pausedAt),
+            pausedAt: null,
+            segment: s.segment + 1,
+          }
+        : s,
+    );
+    setNow(resumedAt);
+    setSessionState("running");
+    startPedometer();
+    setGpsMode(await trackingService.resume());
+  }, [sessionState, startPedometer]);
 
-    summaryDataRef.current = {
-      steps,
-      distanceKm,
-      durationSeconds,
-      startTime,
-    };
-
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {}
+  const stopSession = useCallback(async () => {
+    if (sessionState !== "running" && sessionState !== "paused") return;
+    const total = sessionState === "running" ? commitSteps() : stepsRef.current;
+    const endedAt = session?.pausedAt ?? Date.now();
+    setSession((s) => (s ? { ...s, endedAt, steps: total } : s));
     setIsLocked(false);
     setSessionState("summary");
-  }, [steps, distanceKm, durationSeconds, startTime]);
+    haptic(Haptics.NotificationFeedbackType.Success);
+
+    await trackingService.finish(total);
+    if (walkId) await pullNewPoints(walkId).catch(() => {});
+  }, [sessionState, session, commitSteps, walkId, pullNewPoints]);
 
   const confirmSummary = useCallback(async () => {
-    if (walkId && summaryDataRef.current) {
-      try {
-        await apiRequest("POST", `/api/walks/${walkId}/end`, {
-          distanceKm: summaryDataRef.current.distanceKm,
-          durationSeconds: summaryDataRef.current.durationSeconds,
-          stepsTotal: summaryDataRef.current.steps,
-          pathJson: [],
-        });
-        await refreshUser();
-      } catch (error) {
-        console.error("Error saving walk:", error);
+    if (!session || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      await apiRequest("POST", `/api/walks/${session.walkId}/end`, {
+        distanceKm: Math.min(Math.round(distanceKm * 1000) / 1000, 200),
+        durationSeconds: Math.min(durationSeconds, 24 * 60 * 60),
+        stepsTotal: steps,
+        pathJson: simplifyPath(points, MAX_PATH_POINTS),
+        localDate: toLocalDateKey(new Date(session.startedAt)),
+      });
+    } catch (error) {
+      // 409 means an earlier attempt already saved it (e.g. the response was lost).
+      if (!(error instanceof ApiError && error.status === 409)) {
+        setSaveError(
+          error instanceof ApiError && error.status === 404
+            ? "Questa camminata non esiste più sul server (forse ne hai iniziata un'altra da un altro dispositivo)."
+            : "Salvataggio non riuscito. Controlla la connessione e riprova.",
+        );
+        setIsSaving(false);
+        return;
       }
     }
 
-    setSessionState("idle");
-    setWalkId(null);
-    setSteps(0);
-    setDurationSeconds(0);
-    setStartTime(null);
-    summaryDataRef.current = null;
-  }, [walkId, refreshUser]);
+    await trackingService.clear().catch(() => {});
+    reset();
+    setIsSaving(false);
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/count"] });
+    refreshUser().catch(() => {});
+  }, [
+    session,
+    isSaving,
+    distanceKm,
+    durationSeconds,
+    steps,
+    points,
+    reset,
+    refreshUser,
+  ]);
 
-  const dismissSummary = useCallback(() => {
-    setSessionState("idle");
-    setWalkId(null);
-    setSteps(0);
-    setDurationSeconds(0);
-    setStartTime(null);
-    summaryDataRef.current = null;
-  }, []);
+  const discardSession = useCallback(async () => {
+    if (session) {
+      apiRequest("POST", `/api/walks/${session.walkId}/discard`).catch(
+        () => {},
+      );
+    }
+    await trackingService.clear().catch(() => {});
+    reset();
+  }, [session, reset]);
 
   const toggleLock = useCallback(() => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {}
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setIsLocked((prev) => !prev);
   }, []);
 
   const unlock = useCallback(() => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {}
+    haptic(Haptics.NotificationFeedbackType.Success);
     setIsLocked(false);
-  }, []);
-
-  const formatDuration = useCallback((seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  }, []);
-
-  const formatDurationAccessible = useCallback((seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    const parts: string[] = [];
-    if (hours > 0) parts.push(`${hours} ${hours === 1 ? "ora" : "ore"}`);
-    if (minutes > 0)
-      parts.push(`${minutes} ${minutes === 1 ? "minuto" : "minuti"}`);
-    if (secs > 0 || parts.length === 0)
-      parts.push(`${secs} ${secs === 1 ? "secondo" : "secondi"}`);
-
-    return parts.join(" e ");
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (pedometerSubscription.current) {
-        pedometerSubscription.current.remove();
-      }
-    };
   }, []);
 
   return {
     sessionState,
+    isReady,
     steps,
     distanceKm,
     durationSeconds,
+    points,
+    gpsMode,
     isLocked,
-    isPedometerAvailable,
+    isSaving,
+    saveError,
     startSession,
+    pauseSession,
+    resumeSession,
     stopSession,
     toggleLock,
     unlock,
     confirmSummary,
-    dismissSummary,
-    formatDuration,
-    formatDurationAccessible,
+    discardSession,
   };
 }

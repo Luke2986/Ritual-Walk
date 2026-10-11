@@ -1,15 +1,4 @@
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-export function daysBetween(
-  fromLocalDate: string,
-  toLocalDate: string,
-): number {
-  return Math.round(
-    (Date.parse(`${toLocalDate}T00:00:00Z`) -
-      Date.parse(`${fromLocalDate}T00:00:00Z`)) /
-      DAY_MS,
-  );
-}
+import { daysBetween } from "../shared/dates";
 
 // Couples created before last_walk_local_date existed only have a UTC timestamp.
 export function lastWalkLocalDateOf(couple: {

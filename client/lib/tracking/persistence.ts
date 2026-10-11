@@ -1,242 +1,209 @@
 import * as SQLite from "expo-sqlite";
-import { Platform } from "react-native";
+import { isAcceptableFix, RawFix } from "./geo";
 
 export interface TrackPoint {
-  id?: number;
-  walkId: string;
-  timestamp: number;
+  id: number;
   latitude: number;
   longitude: number;
-  altitude: number | null;
+  timestamp: number;
   accuracy: number | null;
-  speed: number | null;
-  heading: number | null;
+  segment: number;
 }
 
-export interface ActiveWalk {
+export interface ActiveSession {
   walkId: string;
-  startTime: number;
-  pausedTime: number;
-  isPaused: boolean;
+  startedAt: number;
+  pausedMs: number;
+  pausedAt: number | null;
+  endedAt: number | null;
+  segment: number;
+  steps: number;
 }
 
-let db: SQLite.SQLiteDatabase | null = null;
-
-async function getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
-  if (Platform.OS === "web") {
-    return null;
-  }
-
-  if (!db) {
-    db = await SQLite.openDatabaseAsync("step_ritual_tracking.db");
-
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS track_points (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        walk_id TEXT NOT NULL,
-        timestamp INTEGER NOT NULL,
-        latitude REAL NOT NULL,
-        longitude REAL NOT NULL,
-        altitude REAL,
-        accuracy REAL,
-        speed REAL,
-        heading REAL
-      );
-      
-      CREATE INDEX IF NOT EXISTS idx_track_points_walk_id ON track_points(walk_id);
-      
-      CREATE TABLE IF NOT EXISTS active_walk (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        walk_id TEXT NOT NULL,
-        start_time INTEGER NOT NULL,
-        paused_time INTEGER DEFAULT 0,
-        is_paused INTEGER DEFAULT 0
-      );
-    `);
-  }
-
-  return db;
+interface SessionRow {
+  walk_id: string;
+  started_at: number;
+  paused_ms: number;
+  paused_at: number | null;
+  ended_at: number | null;
+  segment: number;
+  steps: number;
 }
 
-export async function persistLocationsBatch(
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const db = await SQLite.openDatabaseAsync("step_ritual_tracking.db");
+      await db.execAsync(`
+        PRAGMA journal_mode = WAL;
+        DROP TABLE IF EXISTS active_walk;
+        DROP TABLE IF EXISTS track_points;
+        CREATE TABLE IF NOT EXISTS walk_points (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          walk_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          accuracy REAL,
+          segment INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_walk_points_walk_id ON walk_points(walk_id, id);
+        CREATE TABLE IF NOT EXISTS active_session (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          walk_id TEXT NOT NULL,
+          started_at INTEGER NOT NULL,
+          paused_ms INTEGER NOT NULL DEFAULT 0,
+          paused_at INTEGER,
+          ended_at INTEGER,
+          segment INTEGER NOT NULL DEFAULT 0,
+          steps INTEGER NOT NULL DEFAULT 0
+        );
+      `);
+      return db;
+    })();
+    dbPromise.catch(() => {
+      dbPromise = null;
+    });
+  }
+  return dbPromise;
+}
+
+function toSession(row: SessionRow): ActiveSession {
+  return {
+    walkId: row.walk_id,
+    startedAt: row.started_at,
+    pausedMs: row.paused_ms,
+    pausedAt: row.paused_at,
+    endedAt: row.ended_at,
+    segment: row.segment,
+    steps: row.steps,
+  };
+}
+
+export async function getActiveSession(): Promise<ActiveSession | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<SessionRow>(
+    "SELECT * FROM active_session WHERE id = 1",
+  );
+  return row ? toSession(row) : null;
+}
+
+export async function createSession(
   walkId: string,
-  locations: Array<{
-    coords: {
-      latitude: number;
-      longitude: number;
-      altitude: number | null;
-      accuracy: number | null;
-      speed: number | null;
-      heading: number | null;
-    };
-    timestamp: number;
-  }>,
+  startedAt: number,
 ): Promise<void> {
-  const database = await getDatabase();
-  if (!database || locations.length === 0) return;
-
-  const values = locations
-    .map(
-      (loc) =>
-        `('${walkId}', ${loc.timestamp}, ${loc.coords.latitude}, ${loc.coords.longitude}, ${loc.coords.altitude ?? "NULL"}, ${loc.coords.accuracy ?? "NULL"}, ${loc.coords.speed ?? "NULL"}, ${loc.coords.heading ?? "NULL"})`,
-    )
-    .join(", ");
-
-  await database.execAsync(`
-    INSERT INTO track_points (walk_id, timestamp, latitude, longitude, altitude, accuracy, speed, heading)
-    VALUES ${values}
-  `);
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync("DELETE FROM walk_points");
+    await db.runAsync(
+      "INSERT OR REPLACE INTO active_session (id, walk_id, started_at, paused_ms, paused_at, ended_at, segment, steps) VALUES (1, ?, ?, 0, NULL, NULL, 0, 0)",
+      [walkId, startedAt],
+    );
+  });
 }
 
-export async function getTrackPoints(walkId: string): Promise<TrackPoint[]> {
-  const database = await getDatabase();
-  if (!database) return [];
+export async function markPaused(pausedAt: number, steps: number) {
+  const db = await getDatabase();
+  await db.runAsync(
+    "UPDATE active_session SET paused_at = ?, steps = ? WHERE id = 1 AND paused_at IS NULL",
+    [pausedAt, steps],
+  );
+}
 
-  const result = await database.getAllAsync<{
-    id: number;
-    walk_id: string;
-    timestamp: number;
-    latitude: number;
-    longitude: number;
-    altitude: number | null;
-    accuracy: number | null;
-    speed: number | null;
-    heading: number | null;
-  }>("SELECT * FROM track_points WHERE walk_id = ? ORDER BY timestamp ASC", [
-    walkId,
+export async function markResumed(resumedAt: number) {
+  const db = await getDatabase();
+  await db.runAsync(
+    "UPDATE active_session SET paused_ms = paused_ms + (? - paused_at), paused_at = NULL, segment = segment + 1 WHERE id = 1 AND paused_at IS NOT NULL",
+    [resumedAt],
+  );
+}
+
+export async function markEnded(endedAt: number, steps: number) {
+  const db = await getDatabase();
+  await db.runAsync(
+    "UPDATE active_session SET ended_at = ?, steps = ? WHERE id = 1 AND ended_at IS NULL",
+    [endedAt, steps],
+  );
+}
+
+export async function saveSteps(steps: number) {
+  const db = await getDatabase();
+  await db.runAsync("UPDATE active_session SET steps = ? WHERE id = 1", [
+    steps,
   ]);
-
-  return result.map(
-    (row: {
-      id: number;
-      walk_id: string;
-      timestamp: number;
-      latitude: number;
-      longitude: number;
-      altitude: number | null;
-      accuracy: number | null;
-      speed: number | null;
-      heading: number | null;
-    }) => ({
-      id: row.id,
-      walkId: row.walk_id,
-      timestamp: row.timestamp,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      altitude: row.altitude,
-      accuracy: row.accuracy,
-      speed: row.speed,
-      heading: row.heading,
-    }),
-  );
 }
 
-export async function clearTrackPoints(walkId: string): Promise<void> {
-  const database = await getDatabase();
-  if (!database) return;
-
-  await database.execAsync(
-    `DELETE FROM track_points WHERE walk_id = '${walkId}'`,
-  );
+export async function clearSession(): Promise<void> {
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync("DELETE FROM walk_points");
+    await db.runAsync("DELETE FROM active_session");
+  });
 }
 
-export async function setActiveWalk(
+export async function getTrackPoints(
   walkId: string,
-  startTime: number,
-): Promise<void> {
-  const database = await getDatabase();
-  if (!database) return;
-
-  await database.execAsync(`
-    INSERT OR REPLACE INTO active_walk (id, walk_id, start_time, paused_time, is_paused)
-    VALUES (1, '${walkId}', ${startTime}, 0, 0)
-  `);
-}
-
-export async function getActiveWalk(): Promise<ActiveWalk | null> {
-  const database = await getDatabase();
-  if (!database) return null;
-
-  const result = await database.getFirstAsync<{
-    walk_id: string;
-    start_time: number;
-    paused_time: number;
-    is_paused: number;
-  }>("SELECT * FROM active_walk WHERE id = 1");
-
-  if (!result) return null;
-
-  return {
-    walkId: result.walk_id,
-    startTime: result.start_time,
-    pausedTime: result.paused_time,
-    isPaused: result.is_paused === 1,
-  };
-}
-
-export async function updateActiveWalkPause(
-  isPaused: boolean,
-  pausedTime: number,
-): Promise<void> {
-  const database = await getDatabase();
-  if (!database) return;
-
-  await database.execAsync(`
-    UPDATE active_walk SET is_paused = ${isPaused ? 1 : 0}, paused_time = ${pausedTime} WHERE id = 1
-  `);
-}
-
-export async function clearActiveWalk(): Promise<void> {
-  const database = await getDatabase();
-  if (!database) return;
-
-  await database.execAsync("DELETE FROM active_walk WHERE id = 1");
-}
-
-export async function getLatestTrackPoint(
-  walkId: string,
-): Promise<TrackPoint | null> {
-  const database = await getDatabase();
-  if (!database) return null;
-
-  const result = await database.getFirstAsync<{
-    id: number;
-    walk_id: string;
-    timestamp: number;
-    latitude: number;
-    longitude: number;
-    altitude: number | null;
-    accuracy: number | null;
-    speed: number | null;
-    heading: number | null;
-  }>(
-    "SELECT * FROM track_points WHERE walk_id = ? ORDER BY timestamp DESC LIMIT 1",
-    [walkId],
+  afterId = 0,
+): Promise<TrackPoint[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<TrackPoint>(
+    "SELECT id, latitude, longitude, timestamp, accuracy, segment FROM walk_points WHERE walk_id = ? AND id > ? ORDER BY id ASC",
+    [walkId, afterId],
   );
-
-  if (!result) return null;
-
-  return {
-    id: result.id,
-    walkId: result.walk_id,
-    timestamp: result.timestamp,
-    latitude: result.latitude,
-    longitude: result.longitude,
-    altitude: result.altitude,
-    accuracy: result.accuracy,
-    speed: result.speed,
-    heading: result.heading,
-  };
 }
 
-export async function getTrackPointCount(walkId: string): Promise<number> {
-  const database = await getDatabase();
-  if (!database) return 0;
+// Foreground watcher and background task can both deliver fixes; serialising writes
+// keeps the "compare with last stored point" filter consistent.
+let writeQueue: Promise<void> = Promise.resolve();
 
-  const result = await database.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM track_points WHERE walk_id = ?",
-    [walkId],
-  );
+export function persistFixes(fixes: RawFix[]): Promise<void> {
+  const run = writeQueue.then(async () => {
+    const db = await getDatabase();
+    if (fixes.length === 0) return;
 
-  return result?.count ?? 0;
+    const session = await getActiveSession();
+    if (!session || session.pausedAt !== null || session.endedAt !== null) {
+      return;
+    }
+
+    const lastRow = await db.getFirstAsync<TrackPoint>(
+      "SELECT id, latitude, longitude, timestamp, accuracy, segment FROM walk_points WHERE walk_id = ? ORDER BY id DESC LIMIT 1",
+      [session.walkId],
+    );
+    let previous: RawFix | null =
+      lastRow && lastRow.segment === session.segment
+        ? { ...lastRow, speed: null }
+        : null;
+
+    const accepted: RawFix[] = [];
+    for (const fix of fixes) {
+      if (fix.timestamp < session.startedAt) continue;
+      if (previous && fix.timestamp <= previous.timestamp) continue;
+      if (isAcceptableFix(fix, previous)) {
+        accepted.push(fix);
+        previous = fix;
+      }
+    }
+    if (accepted.length === 0) return;
+
+    await db.withTransactionAsync(async () => {
+      for (const fix of accepted) {
+        await db.runAsync(
+          "INSERT INTO walk_points (walk_id, timestamp, latitude, longitude, accuracy, segment) VALUES (?, ?, ?, ?, ?, ?)",
+          [
+            session.walkId,
+            fix.timestamp,
+            fix.latitude,
+            fix.longitude,
+            fix.accuracy,
+            session.segment,
+          ],
+        );
+      }
+    });
+  });
+  writeQueue = run.catch(() => {});
+  return run;
 }

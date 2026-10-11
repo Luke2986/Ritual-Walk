@@ -28,7 +28,6 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
   const chartData = dayLabels.flatMap((label, index) => [
     {
       value: data.ioKm[index] || 0,
-      label: index === 0 ? label : undefined,
       frontColor: electricCyan,
       topLabelComponent: () => null,
       spacing: 2,

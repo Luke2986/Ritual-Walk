@@ -3,10 +3,18 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiRequest, getApiUrl, queryClient } from "@/lib/query-client";
+import {
+  apiRequest,
+  ApiError,
+  AUTH_STORAGE_KEY,
+  queryClient,
+} from "@/lib/query-client";
+import { clearScheduledNotifications } from "@/lib/notifications";
+import { trackingService } from "@/lib/tracking";
 
 interface User {
   id: string;
@@ -16,7 +24,7 @@ interface User {
   coupleId: string | null;
 }
 
-interface Couple {
+export interface Couple {
   id: string;
   ritualCode: string | null;
   status: string;
@@ -24,13 +32,26 @@ interface Couple {
   expiresAt: string | null;
   totalKm: number;
   currentStreak: number;
+  bestStreak: number;
   lastWalkDate: string | null;
+  lastWalkLocalDate: string | null;
 }
 
 interface Partner {
   id: string;
   nickname: string;
   avatarUrl: string | null;
+}
+
+interface Session {
+  user: User;
+  couple: Couple | null;
+  partner: Partner | null;
+}
+
+interface StoredAuth {
+  token: string;
+  session?: Session;
 }
 
 interface AuthContextType {
@@ -56,35 +77,72 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = "@step_ritual_auth";
+async function readStoredAuth(): Promise<StoredAuth | null> {
+  try {
+    const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [couple, setCouple] = useState<Couple | null>(null);
-  const [partner, setPartner] = useState<Partner | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserData = async () => {
+  const clearAuth = useCallback(async () => {
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    setSession(null);
+    queryClient.clear();
+    await Promise.all([
+      clearScheduledNotifications(),
+      trackingService.clear().catch(() => {}),
+    ]);
+  }, []);
+
+  const saveSession = useCallback(async (next: Session, token?: string) => {
+    const stored = await readStoredAuth();
+    const nextToken = token ?? stored?.token;
+    if (nextToken) {
+      await AsyncStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({ token: nextToken, session: next }),
+      );
+    }
+    setSession(next);
+  }, []);
+
+  // Only an explicit 401 logs the user out; network errors keep the cached session.
+  const refreshUser = useCallback(async () => {
     try {
       const response = await apiRequest("GET", "/api/auth/me");
-      const data = await response.json();
-      setUser(data.user);
-      setCouple(data.couple);
-      setPartner(data.partner);
+      await saveSession(await response.json());
     } catch (error) {
-      setUser(null);
-      setCouple(null);
-      setPartner(null);
+      if (error instanceof ApiError && error.status === 401) {
+        await clearAuth();
+        return;
+      }
+      throw error;
     }
-  };
+  }, [saveSession, clearAuth]);
 
   useEffect(() => {
     const loadAuth = async () => {
+      const stored = await readStoredAuth();
+      if (!stored?.token) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (stored.session) {
+        setSession(stored.session);
+        setIsLoading(false);
+        refreshUser().catch(() => {});
+        return;
+      }
+
       try {
-        const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-        if (stored) {
-          await fetchUserData();
-        }
+        await refreshUser();
       } catch (error) {
         console.error("Error loading auth:", error);
       } finally {
@@ -92,21 +150,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     loadAuth();
-  }, []);
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
     const response = await apiRequest("POST", "/api/auth/login", {
       email,
       password,
     });
-    const data = await response.json();
-    await AsyncStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({ token: data.token }),
-    );
-    setUser(data.user);
-    setCouple(data.couple);
-    setPartner(data.partner);
+    const { token, ...next } = await response.json();
+    await saveSession(next, token);
     queryClient.invalidateQueries();
   };
 
@@ -120,96 +172,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       nickname,
     });
-    const data = await response.json();
-    await AsyncStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({ token: data.token }),
-    );
-    setUser(data.user);
-    setCouple(null);
-    setPartner(null);
+    const { token, ...next } = await response.json();
+    await saveSession(next, token);
     queryClient.invalidateQueries();
-  };
-
-  const logout = async () => {
-    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-    setUser(null);
-    setCouple(null);
-    setPartner(null);
-    queryClient.clear();
   };
 
   const createCouple = async (): Promise<string> => {
     const response = await apiRequest("POST", "/api/couple/generate");
     const data = await response.json();
-    if (data.error) {
-      throw new Error(data.message || data.error);
-    }
-    await fetchUserData();
+    await refreshUser();
     return data.invite_code;
   };
 
   const joinCouple = async (ritualCode: string) => {
-    const response = await apiRequest("POST", "/api/couple/join", {
-      ritualCode,
-    });
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.message || data.error);
-    }
-    setPartner(data.partner);
-    await fetchUserData();
+    await apiRequest("POST", "/api/couple/join", { ritualCode });
+    await refreshUser();
+    queryClient.invalidateQueries();
   };
 
   const unpairCouple = async () => {
-    const response = await apiRequest("POST", "/api/couple/unpair");
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.message || data.error);
-    }
-    setCouple(null);
-    setPartner(null);
+    await apiRequest("POST", "/api/couple/unpair");
+    await refreshUser();
     queryClient.invalidateQueries();
-    await fetchUserData();
   };
 
   const regenerateInvite = async (): Promise<string> => {
     const response = await apiRequest("POST", "/api/couple/regenerate");
     const data = await response.json();
-    if (data.error) {
-      throw new Error(data.message || data.error);
-    }
-    await fetchUserData();
+    await refreshUser();
     return data.invite_code;
   };
 
   const cancelInvite = async () => {
-    const response = await apiRequest("POST", "/api/couple/cancel-invite");
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.message || data.error);
-    }
-    setCouple(null);
-    setPartner(null);
+    await apiRequest("POST", "/api/couple/cancel-invite");
+    await refreshUser();
     queryClient.invalidateQueries();
-    await fetchUserData();
-  };
-
-  const refreshUser = async () => {
-    await fetchUserData();
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        couple,
-        partner,
+        user: session?.user ?? null,
+        couple: session?.couple ?? null,
+        partner: session?.partner ?? null,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!session?.user,
         login,
         register,
-        logout,
+        logout: clearAuth,
         createCouple,
         joinCouple,
         unpairCouple,

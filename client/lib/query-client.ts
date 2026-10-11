@@ -1,71 +1,81 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const AUTH_STORAGE_KEY = "@step_ritual_auth";
+export const AUTH_STORAGE_KEY = "@step_ritual_auth";
 
-/**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
- * @returns {string} The API base URL
- */
-export function getApiUrl(): string {
-  let host = process.env.EXPO_PUBLIC_DOMAIN;
-
-  if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string | undefined,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
   }
+}
 
-  let url = new URL(`https://${host}`);
-
-  return url.href;
+export function getApiUrl(): string {
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (!url) {
+    throw new Error("EXPO_PUBLIC_API_URL is not set (see .env.example)");
+  }
+  return url.replace(/\/+$/, "");
 }
 
 async function getAuthToken(): Promise<string | null> {
   try {
     const stored = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      const { token } = JSON.parse(stored);
-      return token;
-    }
-  } catch (error) {
-    console.error("Error getting auth token:", error);
+    return stored ? (JSON.parse(stored).token ?? null) : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+async function toApiError(res: Response): Promise<ApiError> {
+  let code: string | undefined;
+  let message = `Errore ${res.status}`;
+  try {
+    const body = await res.json();
+    code = body.error;
+    message = body.message || body.error || message;
+  } catch {
+    // Non-JSON error body: keep the generic message.
   }
+  return new ApiError(res.status, code, message);
 }
 
 export async function apiRequest(
   method: string,
   route: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
-  const baseUrl = getApiUrl();
-  const url = new URL(route, baseUrl);
-
   const token = await getAuthToken();
   const headers: Record<string, string> = {};
-
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
-
-  if (data) {
+  if (data !== undefined) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${getApiUrl()}${route}`, {
+      method,
+      headers,
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "NETWORK_ERROR",
+      "Connessione assente. Controlla internet e riprova.",
+    );
+  }
 
-  await throwIfResNotOk(res);
+  if (!res.ok) {
+    throw await toApiError(res);
+  }
   return res;
 }
 
@@ -75,27 +85,19 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const baseUrl = getApiUrl();
-    const url = new URL(queryKey.join("/") as string, baseUrl);
-
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+    try {
+      const res = await apiRequest("GET", queryKey.join("/"));
+      return await res.json();
+    } catch (error) {
+      if (
+        unauthorizedBehavior === "returnNull" &&
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        return null;
+      }
+      throw error;
     }
-
-    const res = await fetch(url, {
-      headers,
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({

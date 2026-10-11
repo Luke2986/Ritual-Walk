@@ -38,8 +38,10 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
 import {
   StatsResponse,
-  getDateRange,
   buildActivityByDate,
+  fetchStats,
+  getEffectiveStreak,
+  statsQueryKey,
 } from "@/lib/statsAggregation";
 
 type DashboardScreenProps = {
@@ -61,11 +63,12 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const tabBarHeight = useBottomTabBarHeight();
   const { user, couple, partner, refreshUser } = useAuth();
   const rootNavigation = useNavigation<any>();
+  const streak = couple ? getEffectiveStreak(couple) : 0;
 
   const streakGlow = useSharedValue(0.3);
 
   React.useEffect(() => {
-    if (couple && couple.currentStreak > 0) {
+    if (streak > 0) {
       streakGlow.value = withRepeat(
         withSequence(
           withTiming(0.6, {
@@ -81,46 +84,20 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         false,
       );
     }
-  }, [couple?.currentStreak]);
+  }, [streak, streakGlow]);
 
   const streakGlowStyle = useAnimatedStyle(() => ({
     shadowOpacity: streakGlow.value,
   }));
 
-  const {
-    data: recentWalks,
-    isLoading,
-    refetch,
-  } = useQuery<WalkData[]>({
+  const { data: recentWalks, refetch } = useQuery<WalkData[]>({
     queryKey: ["/api/walks/recent"],
     enabled: !!couple,
   });
 
-  const weekRange = useMemo(() => getDateRange("week"), []);
-
   const { data: statsData, refetch: refetchStats } = useQuery<StatsResponse>({
-    queryKey: [
-      "/api/walks/stats",
-      weekRange.start.toISOString(),
-      weekRange.end.toISOString(),
-    ],
-    queryFn: async () => {
-      const url = new URL("/api/walks/stats", window.location.origin);
-      url.searchParams.set(
-        "startDate",
-        weekRange.start.toISOString().split("T")[0],
-      );
-      url.searchParams.set(
-        "endDate",
-        weekRange.end.toISOString().split("T")[0],
-      );
-      const response = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-      });
-      return response.json();
-    },
+    queryKey: statsQueryKey("week"),
+    queryFn: () => fetchStats("week"),
     enabled: !!couple,
   });
 
@@ -139,13 +116,18 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.allSettled([refetch(), refetchStats(), refreshUser()]);
-    } catch (error) {
-      const message = "Sei offline: dati non aggiornati";
-      if (Platform.OS === "web") {
-        console.warn(message);
-      } else {
-        Alert.alert("Errore", message);
+      const results = await Promise.allSettled([
+        refetch({ throwOnError: true }),
+        refetchStats({ throwOnError: true }),
+        refreshUser(),
+      ]);
+      if (results.some((r) => r.status === "rejected")) {
+        const message = "Sei offline: dati non aggiornati";
+        if (Platform.OS === "web") {
+          console.warn(message);
+        } else {
+          Alert.alert("Errore", message);
+        }
       }
     } finally {
       setRefreshing(false);
@@ -154,7 +136,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const handleInvitePartner = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    rootNavigation.navigate("MainTabs", { screen: "ProfileTab" });
+    rootNavigation.navigate("AccountTab");
   };
 
   const renderWalk = ({ item }: { item: WalkData }) => (
@@ -163,6 +145,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       duration={item.durationSeconds}
       date={item.startedAt}
       userNickname={item.userNickname}
+      onPress={() => navigation.navigate("WalkDetail", { walkId: item.id })}
     />
   );
 
@@ -190,17 +173,15 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                   <Feather name="zap" size={36} color="#FFB300" />
                 </View>
                 <View style={styles.streakText}>
-                  <ThemedText style={styles.streakNumber}>
-                    {couple.currentStreak}
-                  </ThemedText>
+                  <ThemedText style={styles.streakNumber}>{streak}</ThemedText>
                   <ThemedText
                     type="body"
                     style={{ color: theme.textSecondary }}
                   >
-                    {couple.currentStreak === 1 ? "giorno" : "giorni"}
+                    {streak === 1 ? "giorno" : "giorni"}
                   </ThemedText>
                 </View>
-                {couple.currentStreak > 0 ? (
+                {streak > 0 ? (
                   <View style={styles.streakBadge}>
                     <Feather name="award" size={16} color="#FFFFFF" />
                   </View>
@@ -270,27 +251,26 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           </View>
         </>
       ) : (
-        <Pressable onPress={handleInvitePartner}>
-          <NeonCard
-            title="Collega il Partner"
-            variant="highlight"
-            style={styles.connectCard}
-            glowColor="#FF1493"
+        <NeonCard
+          title="Collega il Partner"
+          onPress={handleInvitePartner}
+          variant="highlight"
+          style={styles.connectCard}
+          glowColor="#FF1493"
+        >
+          <ThemedText
+            type="body"
+            style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
           >
-            <ThemedText
-              type="body"
-              style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
-            >
-              Crea o inserisci un Ritual Code per collegare il tuo partner
+            Crea o inserisci un Ritual Code per collegare il tuo partner
+          </ThemedText>
+          <View style={styles.connectButton}>
+            <Feather name="plus" size={18} color="#FFFFFF" />
+            <ThemedText style={styles.connectButtonText}>
+              Collega Ora
             </ThemedText>
-            <View style={styles.connectButton}>
-              <Feather name="plus" size={18} color="#FFFFFF" />
-              <ThemedText style={styles.connectButtonText}>
-                Collega Ora
-              </ThemedText>
-            </View>
-          </NeonCard>
-        </Pressable>
+          </View>
+        </NeonCard>
       )}
     </View>
   );

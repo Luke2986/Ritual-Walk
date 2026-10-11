@@ -1,5 +1,12 @@
 import React from "react";
-import { View, StyleSheet, Modal, Pressable } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Modal,
+  Pressable,
+  Alert,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -13,8 +20,10 @@ interface WalkSummarySheetProps {
   steps: number;
   distanceKm: number;
   durationFormatted: string;
+  isSaving: boolean;
+  error: string | null;
   onConfirm: () => void;
-  onDismiss: () => void;
+  onDiscard: () => void;
 }
 
 export function WalkSummarySheet({
@@ -22,8 +31,10 @@ export function WalkSummarySheet({
   steps,
   distanceKm,
   durationFormatted,
+  isSaving,
+  error,
   onConfirm,
-  onDismiss,
+  onDiscard,
 }: WalkSummarySheetProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -36,8 +47,22 @@ export function WalkSummarySheet({
   };
 
   const handleConfirm = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => {},
+    );
     onConfirm();
+  };
+
+  const handleDiscard = () => {
+    const message = "La camminata verrà eliminata e non conterà per lo streak.";
+    if (Platform.OS === "web") {
+      if (window.confirm(message)) onDiscard();
+      return;
+    }
+    Alert.alert("Eliminare la camminata?", message, [
+      { text: "Annulla", style: "cancel" },
+      { text: "Elimina", style: "destructive", onPress: onDiscard },
+    ]);
   };
 
   return (
@@ -46,9 +71,10 @@ export function WalkSummarySheet({
       transparent
       animationType="slide"
       statusBarTranslucent
+      onRequestClose={() => {}}
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onDismiss} />
+        <View style={styles.backdrop} />
         <View
           style={[
             styles.sheet,
@@ -148,17 +174,29 @@ export function WalkSummarySheet({
             </View>
           </View>
 
+          {error ? (
+            <ThemedText style={[styles.errorText, { color: theme.error }]}>
+              {error}
+            </ThemedText>
+          ) : null}
+
           <View style={styles.actions}>
             <NeonButton
               onPress={handleConfirm}
               size="large"
               style={styles.confirmButton}
+              disabled={isSaving}
               testID="button-save-walk"
             >
-              Salva nel Diario
+              {isSaving
+                ? "Salvataggio..."
+                : error
+                  ? "Riprova"
+                  : "Salva nel Diario"}
             </NeonButton>
             <Pressable
-              onPress={onDismiss}
+              onPress={handleDiscard}
+              disabled={isSaving}
               style={styles.dismissButton}
               testID="button-dismiss-summary"
             >
@@ -240,6 +278,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: Spacing.md,
   },
   actions: {
     gap: Spacing.md,

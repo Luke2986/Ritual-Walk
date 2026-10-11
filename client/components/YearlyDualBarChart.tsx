@@ -69,7 +69,7 @@ export function YearlyDualBarChart({ data }: YearlyDualBarChartProps) {
           {formatDistance(totalTogether)}
         </ThemedText>
         <ThemedText type="body" style={styles.summaryText}>
-          quest'anno
+          {"quest'anno"}
         </ThemedText>
       </View>
 

@@ -14,6 +14,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { getEffectiveStreak } from "@/lib/statsAggregation";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
@@ -128,23 +129,25 @@ function BadgeItem({
   badge,
   totalKm,
   currentStreak,
+  bestStreak,
   walkCount,
 }: {
   badge: Badge;
   totalKm: number;
   currentStreak: number;
+  bestStreak: number;
   walkCount: number;
 }) {
   const { theme } = useTheme();
 
   const isEarned = React.useMemo(() => {
     if (badge.kmThreshold && totalKm >= badge.kmThreshold) return true;
-    if (badge.streakThreshold && currentStreak >= badge.streakThreshold)
+    if (badge.streakThreshold && bestStreak >= badge.streakThreshold)
       return true;
     if (badge.walkCountThreshold && walkCount >= badge.walkCountThreshold)
       return true;
     return false;
-  }, [badge, totalKm, currentStreak, walkCount]);
+  }, [badge, totalKm, bestStreak, walkCount]);
 
   const progress = React.useMemo(() => {
     if (badge.kmThreshold) return Math.min(totalKm / badge.kmThreshold, 1);
@@ -193,7 +196,7 @@ export default function PremiScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { couple } = useAuth();
+  const { couple, refreshUser } = useAuth();
 
   const { data: walksData, refetch } = useQuery<{ count: number }>({
     queryKey: ["/api/walks/count"],
@@ -206,8 +209,8 @@ export default function PremiScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await refetch();
-    } catch (error) {
+      await Promise.all([refetch({ throwOnError: true }), refreshUser()]);
+    } catch {
       const message = "Sei offline: dati non aggiornati";
       if (Platform.OS === "web") {
         console.warn(message);
@@ -217,10 +220,11 @@ export default function PremiScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refetch, refreshing]);
+  }, [refetch, refreshUser, refreshing]);
 
   const totalKm = couple?.totalKm || 0;
-  const currentStreak = couple?.currentStreak || 0;
+  const currentStreak = couple ? getEffectiveStreak(couple) : 0;
+  const bestStreak = Math.max(couple?.bestStreak ?? 0, currentStreak);
   const walkCount = walksData?.count || 0;
 
   const nextGoal = React.useMemo(() => {
@@ -289,6 +293,7 @@ export default function PremiScreen() {
               badge={badge}
               totalKm={totalKm}
               currentStreak={currentStreak}
+              bestStreak={bestStreak}
               walkCount={walkCount}
             />
           ))}

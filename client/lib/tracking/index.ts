@@ -1,7 +1,7 @@
 export {
   trackingService,
-  type TrackingStatus,
-  type LocationPoint,
+  elapsedSeconds,
+  type GpsMode,
 } from "./TrackingService";
-export { LOCATION_TASK_NAME } from "./backgroundLocationTask";
-export type { TrackPoint, ActiveWalk } from "./persistence";
+export { pathDistanceKm, simplifyPath, type LatLng } from "./geo";
+export type { TrackPoint, ActiveSession } from "./persistence";

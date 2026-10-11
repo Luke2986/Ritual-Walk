@@ -11,7 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
-import { RouteProp, useRoute } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
@@ -21,16 +22,18 @@ import { WeeklyDualBarChart } from "@/components/WeeklyDualBarChart";
 import { MonthlyDualBarChart } from "@/components/MonthlyDualBarChart";
 import { YearlyDualBarChart } from "@/components/YearlyDualBarChart";
 import { ThemedText } from "@/components/ThemedText";
+import { WalkCard } from "@/components/WalkCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spacing } from "@/constants/theme";
 import { HistoryStackParamList } from "@/navigation/HistoryStackNavigator";
 import {
   StatsResponse,
-  getDateRange,
   aggregateWeeklyStats,
   aggregateMonthlyStats,
   aggregateYearlyStats,
+  fetchStats,
+  statsQueryKey,
 } from "@/lib/statsAggregation";
 
 type HistoryScreenRouteProp = RouteProp<HistoryStackParamList, "History">;
@@ -40,8 +43,10 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { couple, refreshUser } = useAuth();
+  const { couple, user, partner, refreshUser } = useAuth();
   const route = useRoute<HistoryScreenRouteProp>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<HistoryStackParamList>>();
 
   const initialRange = route.params?.range || "week";
   const [timeRange, setTimeRange] = useState<TimeRange>(initialRange);
@@ -52,35 +57,9 @@ export default function HistoryScreen() {
     }
   }, [route.params?.range]);
 
-  const dateRange = useMemo(() => getDateRange(timeRange), [timeRange]);
-
-  const {
-    data: statsData,
-    isLoading,
-    refetch,
-  } = useQuery<StatsResponse>({
-    queryKey: [
-      "/api/walks/stats",
-      dateRange.start.toISOString(),
-      dateRange.end.toISOString(),
-    ],
-    queryFn: async () => {
-      const url = new URL("/api/walks/stats", window.location.origin);
-      url.searchParams.set(
-        "startDate",
-        dateRange.start.toISOString().split("T")[0],
-      );
-      url.searchParams.set(
-        "endDate",
-        dateRange.end.toISOString().split("T")[0],
-      );
-      const response = await fetch(url.toString(), {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-      });
-      return response.json();
-    },
+  const { data: statsData, refetch } = useQuery<StatsResponse>({
+    queryKey: statsQueryKey(timeRange),
+    queryFn: () => fetchStats(timeRange),
     enabled: !!couple,
   });
 
@@ -90,13 +69,17 @@ export default function HistoryScreen() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.allSettled([refetch(), refreshUser()]);
-    } catch (error) {
-      const message = "Sei offline: dati non aggiornati";
-      if (Platform.OS === "web") {
-        console.warn(message);
-      } else {
-        Alert.alert("Errore", message);
+      const results = await Promise.allSettled([
+        refetch({ throwOnError: true }),
+        refreshUser(),
+      ]);
+      if (results.some((r) => r.status === "rejected")) {
+        const message = "Sei offline: dati non aggiornati";
+        if (Platform.OS === "web") {
+          console.warn(message);
+        } else {
+          Alert.alert("Errore", message);
+        }
       }
     } finally {
       setRefreshing(false);
@@ -132,6 +115,9 @@ export default function HistoryScreen() {
       statsData.partnerId,
     );
   }, [statsData]);
+
+  const nicknameOf = (userId: string) =>
+    userId === user?.id ? user.nickname : (partner?.nickname ?? "Partner");
 
   const renderChart = () => {
     switch (timeRange) {
@@ -212,6 +198,32 @@ export default function HistoryScreen() {
             {renderChart()}
           </Animated.View>
         </View>
+
+        <View style={styles.walksSection}>
+          <ThemedText type="h4" style={styles.sectionTitle}>
+            Camminate
+          </ThemedText>
+          {statsData?.walks.length ? (
+            statsData.walks.map((walk) => (
+              <WalkCard
+                key={walk.id}
+                distance={walk.distanceKm}
+                duration={walk.durationSeconds}
+                date={walk.startedAt}
+                userNickname={nicknameOf(walk.userId)}
+                onPress={() =>
+                  navigation.navigate("WalkDetail", { walkId: walk.id })
+                }
+              />
+            ))
+          ) : (
+            <EmptyState
+              icon="map-pin"
+              title="Nessuna camminata"
+              description="Nessuna camminata in questo periodo"
+            />
+          )}
+        </View>
       </ScrollView>
     </LinearGradient>
   );
@@ -232,8 +244,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: Spacing.lg,
   },
-  statsSection: {
-    flex: 1,
+  statsSection: {},
+  walksSection: {
+    marginTop: Spacing["2xl"],
   },
   sectionTitle: {
     color: midnightIndigo,

@@ -1,21 +1,17 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   StyleSheet,
   View,
   Platform,
   Linking,
   Pressable,
-  AccessibilityInfo,
-  AppState,
-  AppStateStatus,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { Pedometer } from "expo-sensors";
-import * as Haptics from "expo-haptics";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -23,13 +19,17 @@ import Animated, {
   withTiming,
   Easing,
   FadeIn,
-  FadeOut,
 } from "react-native-reanimated";
 
 import { ThemedText } from "@/components/ThemedText";
 import { NeonButton } from "@/components/NeonButton";
 import { useTheme } from "@/hooks/useTheme";
-import { useWalkSession } from "@/hooks/useWalkSession";
+import {
+  useWalkSession,
+  formatDuration,
+  formatDurationAccessible,
+} from "@/hooks/useWalkSession";
+import { LiveRouteMap } from "@/components/walk/LiveRouteMap";
 import { WalkKpiRow } from "@/components/walk/WalkKpiRow";
 import { StopSlider } from "@/components/walk/StopSlider";
 import { HoldToStopButton } from "@/components/walk/HoldToStopButton";
@@ -39,101 +39,36 @@ import { Spacing, Colors, BorderRadius, Shadows } from "@/constants/theme";
 
 export default function TrackWalkScreen() {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
 
   const {
     sessionState,
+    isReady,
     steps,
     distanceKm,
     durationSeconds,
+    points,
+    gpsMode,
     isLocked,
-    isPedometerAvailable,
+    isSaving,
+    saveError,
     startSession,
+    pauseSession,
+    resumeSession,
     stopSession,
     toggleLock,
     unlock,
     confirmSummary,
-    dismissSummary,
-    formatDuration,
-    formatDurationAccessible,
+    discardSession,
   } = useWalkSession();
 
-  const [pedometerPermission, setPedometerPermission] = useState<
-    boolean | null
-  >(null);
-  const pulseScale = useSharedValue(1);
   const chipPulse = useSharedValue(1);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-
-  const checkPedometerPermission = useCallback(async () => {
-    if (Platform.OS === "ios") {
-      try {
-        const [isAvailable, permissionResult] = await Promise.all([
-          Pedometer.isAvailableAsync(),
-          Pedometer.getPermissionsAsync(),
-        ]);
-
-        if (isAvailable) {
-          setPedometerPermission(true);
-          return;
-        }
-
-        if (permissionResult.granted || permissionResult.status === "granted") {
-          setPedometerPermission(true);
-          return;
-        }
-
-        if (permissionResult.status === "undetermined") {
-          setPedometerPermission(null);
-          return;
-        }
-
-        setPedometerPermission(false);
-      } catch (error) {
-        console.error("Error checking pedometer permission:", error);
-        const isAvailable = await Pedometer.isAvailableAsync().catch(
-          () => false,
-        );
-        setPedometerPermission(isAvailable);
-      }
-    } else {
-      setPedometerPermission(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkPedometerPermission();
-
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appStateRef.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        checkPedometerPermission();
-      }
-      appStateRef.current = nextAppState;
-    };
-
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
-    );
-    return () => subscription?.remove();
-  }, [checkPedometerPermission]);
-
-  useEffect(() => {
-    if (sessionState === "idle") {
-      pulseScale.value = withRepeat(
-        withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true,
-      );
-    } else {
-      pulseScale.value = withTiming(1);
-    }
-  }, [sessionState]);
+  const route = useMemo(
+    () => points.map(({ latitude, longitude }) => ({ latitude, longitude })),
+    [points],
+  );
+  const isActive = sessionState === "running" || sessionState === "paused";
 
   useEffect(() => {
     if (sessionState === "running" && !isLocked) {
@@ -145,83 +80,42 @@ export default function TrackWalkScreen() {
     } else {
       chipPulse.value = withTiming(1);
     }
-  }, [sessionState, isLocked]);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
+  }, [sessionState, isLocked, chipPulse]);
 
   const chipPulseStyle = useAnimatedStyle(() => ({
     opacity: chipPulse.value,
   }));
 
   const handleStartSession = async () => {
-    if (Platform.OS === "ios" && !pedometerPermission) {
-      const result = await Pedometer.requestPermissionsAsync();
-      setPedometerPermission(result.granted);
-      if (!result.granted) {
-        return;
-      }
+    let gps;
+    try {
+      gps = await startSession();
+    } catch {
+      Alert.alert(
+        "Impossibile iniziare",
+        "Serve una connessione a internet per iniziare la camminata. Riprova tra poco.",
+      );
+      return;
     }
 
-    await startSession();
+    if (gps === "off" && Platform.OS !== "web") {
+      Alert.alert(
+        "GPS non attivo",
+        "Senza accesso alla posizione registriamo solo passi e tempo, senza mappa del percorso.",
+        [
+          { text: "Ok", style: "cancel" },
+          { text: "Impostazioni", onPress: () => Linking.openSettings() },
+        ],
+      );
+    }
   };
 
-  const requestPedometerPermission = async () => {
-    const result = await Pedometer.requestPermissionsAsync();
-    setPedometerPermission(result.granted);
-  };
-
-  if (Platform.OS === "ios" && pedometerPermission === false) {
-    return (
-      <LinearGradient
-        colors={[theme.backgroundRoot, theme.backgroundDefault]}
-        style={styles.gradient}
-      >
-        <View
-          style={[
-            styles.permissionContainer,
-            {
-              paddingTop: headerHeight + Spacing.xl,
-              paddingBottom: insets.bottom + Spacing.xl,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: `${theme.primary}20` },
-            ]}
-          >
-            <Feather name="activity" size={48} color={theme.primary} />
-          </View>
-          <ThemedText type="h3" style={styles.permissionTitle}>
-            Accesso al Movimento
-          </ThemedText>
-          <ThemedText
-            type="body"
-            style={[styles.permissionText, { color: theme.textSecondary }]}
-          >
-            Abilita 'Movimento' nelle impostazioni per contare i passi durante
-            le tue camminate
-          </ThemedText>
-
-          <NeonButton
-            onPress={async () => {
-              try {
-                await Linking.openSettings();
-              } catch (error) {
-                console.error("Cannot open settings");
-              }
-            }}
-            style={styles.permissionButton}
-          >
-            Apri Impostazioni
-          </NeonButton>
-        </View>
-      </LinearGradient>
-    );
-  }
+  const gpsLabel =
+    gpsMode === "background"
+      ? "GPS attivo"
+      : gpsMode === "foreground"
+        ? "GPS solo ad app aperta"
+        : "GPS non attivo";
 
   return (
     <LinearGradient
@@ -231,11 +125,11 @@ export default function TrackWalkScreen() {
       <View
         style={[styles.container, { paddingTop: headerHeight + Spacing.lg }]}
       >
-        {sessionState === "idle" ? (
+        {sessionState === "idle" || sessionState === "starting" ? (
           <View
             style={[
               styles.idleContainer,
-              { paddingBottom: tabBarHeight + Spacing.xl },
+              { paddingBottom: tabBarHeight + Spacing.xl + 40 },
             ]}
           >
             <View style={styles.idleContent}>
@@ -257,25 +151,8 @@ export default function TrackWalkScreen() {
               <ThemedText
                 style={[styles.heroSubtitle, { color: theme.textSecondary }]}
               >
-                Inizia una sessione per tracciare i tuoi passi
+                Traccia percorso, distanza e passi della vostra camminata
               </ThemedText>
-
-              {Platform.OS === "android" ? (
-                <View
-                  style={[
-                    styles.infoCard,
-                    { backgroundColor: theme.cardBackground },
-                  ]}
-                >
-                  <Feather name="info" size={16} color={theme.textSecondary} />
-                  <ThemedText
-                    style={[styles.infoText, { color: theme.textSecondary }]}
-                  >
-                    Su Android, i passi in background richiedono Health Connect
-                    (fase 2)
-                  </ThemedText>
-                </View>
-              ) : null}
             </View>
 
             <View style={styles.startButtonContainer}>
@@ -283,25 +160,32 @@ export default function TrackWalkScreen() {
                 onPress={handleStartSession}
                 size="large"
                 style={styles.startButton}
+                disabled={!isReady || sessionState === "starting"}
                 testID="button-start-session"
               >
-                <View style={styles.startButtonContent}>
-                  <View
-                    style={[styles.recordDot, { backgroundColor: "#FFFFFF" }]}
-                  />
-                  <ThemedText style={styles.startButtonText}>Inizia</ThemedText>
-                </View>
+                {sessionState === "starting" ? (
+                  <ActivityIndicator color={Colors.light.buttonText} />
+                ) : (
+                  <View style={styles.startButtonContent}>
+                    <View
+                      style={[styles.recordDot, { backgroundColor: "#FFFFFF" }]}
+                    />
+                    <ThemedText style={styles.startButtonText}>
+                      Inizia
+                    </ThemedText>
+                  </View>
+                )}
               </NeonButton>
             </View>
           </View>
         ) : null}
 
-        {sessionState === "running" ? (
+        {isActive ? (
           <Animated.View
             entering={FadeIn.duration(300)}
             style={[
               styles.runningContainer,
-              { paddingBottom: tabBarHeight + Spacing.xl },
+              { paddingBottom: tabBarHeight + Spacing.lg + 40 },
             ]}
           >
             <View style={styles.statusBar}>
@@ -319,9 +203,34 @@ export default function TrackWalkScreen() {
                     { color: Colors.light.accentMagenta },
                   ]}
                 >
-                  In corso
+                  {sessionState === "paused" ? "In pausa" : "In corso"}
                 </ThemedText>
               </View>
+              <View
+                style={[
+                  styles.gpsChip,
+                  { backgroundColor: theme.cardBackground },
+                ]}
+              >
+                <Feather
+                  name="navigation"
+                  size={12}
+                  color={
+                    gpsMode === "off"
+                      ? theme.textSecondary
+                      : Colors.light.success
+                  }
+                />
+                <ThemedText
+                  style={[styles.gpsText, { color: theme.textSecondary }]}
+                >
+                  {gpsLabel}
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.mapCard}>
+              <LiveRouteMap points={route} />
             </View>
 
             <View style={styles.kpiSection}>
@@ -333,16 +242,37 @@ export default function TrackWalkScreen() {
               />
             </View>
 
-            <View style={styles.motivationSection}>
-              <ThemedText
-                style={[styles.motivationText, { color: theme.textSecondary }]}
-              >
-                Continua cos&igrave;! Ogni passo conta.
-              </ThemedText>
-            </View>
-
             <View style={styles.bottomControls}>
-              <View style={styles.lockToggle}>
+              <View style={styles.controlRow}>
+                <Pressable
+                  onPress={
+                    sessionState === "paused" ? resumeSession : pauseSession
+                  }
+                  disabled={isLocked}
+                  testID="button-toggle-pause"
+                  style={[
+                    styles.lockButton,
+                    { backgroundColor: theme.cardBackground },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    sessionState === "paused" ? "Riprendi" : "Pausa"
+                  }
+                >
+                  <Feather
+                    name={sessionState === "paused" ? "play" : "pause"}
+                    size={20}
+                    color={theme.textSecondary}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.lockButtonText,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    {sessionState === "paused" ? "Riprendi" : "Pausa"}
+                  </ThemedText>
+                </Pressable>
                 <Pressable
                   onPress={toggleLock}
                   testID="button-toggle-lock"
@@ -392,7 +322,7 @@ export default function TrackWalkScreen() {
         ) : null}
 
         <PocketLockOverlay
-          visible={isLocked && sessionState === "running"}
+          visible={isLocked && isActive}
           steps={steps}
           durationFormatted={formatDuration(durationSeconds)}
           onUnlock={unlock}
@@ -403,8 +333,10 @@ export default function TrackWalkScreen() {
           steps={steps}
           distanceKm={distanceKm}
           durationFormatted={formatDuration(durationSeconds)}
+          isSaving={isSaving}
+          error={saveError}
           onConfirm={confirmSummary}
-          onDismiss={dismissSummary}
+          onDiscard={discardSession}
         />
       </View>
     </LinearGradient>
@@ -417,31 +349,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  permissionContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.xl,
-  },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.xl,
-  },
-  permissionTitle: {
-    textAlign: "center",
-    marginBottom: Spacing.md,
-  },
-  permissionText: {
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-  },
-  permissionButton: {
-    minWidth: 200,
   },
   idleContainer: {
     flex: 1,
@@ -469,20 +376,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 16,
     marginBottom: Spacing.xl,
-  },
-  infoCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginTop: Spacing.lg,
-    gap: Spacing.sm,
-    ...Shadows.card,
-  },
-  infoText: {
-    fontSize: 13,
-    flex: 1,
   },
   startButtonContainer: {
     paddingHorizontal: Spacing.xl,
@@ -512,8 +405,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusBar: {
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  gpsChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    gap: Spacing.xs,
+  },
+  gpsText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  mapCard: {
+    flex: 1,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    overflow: "hidden",
+    ...Shadows.card,
   },
   statusChip: {
     flexDirection: "row",
@@ -535,27 +451,18 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  kpiSection: {
-    marginBottom: Spacing["2xl"],
-  },
-  motivationSection: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: Spacing.xl,
-  },
-  motivationText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
+  kpiSection: {},
   bottomControls: {
     paddingTop: Spacing.lg,
     gap: Spacing.lg,
   },
-  lockToggle: {
+  controlRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
   },
   lockButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

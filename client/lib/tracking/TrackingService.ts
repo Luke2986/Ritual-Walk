@@ -1,295 +1,166 @@
 import * as Location from "expo-location";
-import { Platform, Alert, Linking } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+import { Platform } from "react-native";
 import {
-  setActiveWalk,
-  getActiveWalk,
-  clearActiveWalk,
+  ActiveSession,
+  clearSession,
+  createSession,
+  getActiveSession,
   getTrackPoints,
-  clearTrackPoints,
-  updateActiveWalkPause,
-  persistLocationsBatch,
-  getLatestTrackPoint,
+  markEnded,
+  markPaused,
+  markResumed,
+  persistFixes,
+  saveSteps,
   TrackPoint,
 } from "./persistence";
-import { LOCATION_TASK_NAME } from "./backgroundLocationTask";
+import { LOCATION_TASK_NAME, toRawFix } from "./backgroundLocationTask";
 
-export interface TrackingStatus {
-  isTracking: boolean;
-  isPaused: boolean;
-  walkId: string | null;
-  startTime: number | null;
-  pausedTime: number;
-}
+// "background": keeps tracking with the screen off. "foreground": only while the app is open.
+export type GpsMode = "background" | "foreground" | "off";
 
-export interface LocationPoint {
-  latitude: number;
-  longitude: number;
-}
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 class TrackingService {
-  private foregroundSubscription: Location.LocationSubscription | null = null;
-  private isWebMode: boolean = Platform.OS === "web";
+  private watcher: Location.LocationSubscription | null = null;
 
-  async requestPermissions(): Promise<{
-    foreground: boolean;
-    background: boolean;
-  }> {
+  // Expo Go cannot run background location tasks, so only ask for "Always" in real builds.
+  private async requestPermissions(): Promise<GpsMode> {
+    if (Platform.OS === "web") return "off";
+
     const foreground = await Location.requestForegroundPermissionsAsync();
+    if (!foreground.granted) return "off";
+    if (isExpoGo) return "foreground";
 
-    if (!foreground.granted) {
-      return { foreground: false, background: false };
-    }
-
-    // Web doesn't support background location
-    if (this.isWebMode) {
-      return { foreground: true, background: false };
-    }
-
-    // iOS in Expo Go doesn't support background location - skip the request entirely
-    // Background location only works with development builds or standalone apps on iOS
-    if (Platform.OS === "ios") {
-      console.log(
-        "iOS detected - skipping background location request (not supported in Expo Go)",
-      );
-      return { foreground: true, background: false };
-    }
-
-    // Android supports background location in Expo Go
     try {
       const background = await Location.requestBackgroundPermissionsAsync();
-
-      if (!background.granted) {
-        if (!background.canAskAgain) {
-          Alert.alert(
-            "Permesso background richiesto",
-            "Per tracciare le camminate anche a schermo spento, abilita 'Sempre' nelle impostazioni di localizzazione.",
-            [
-              { text: "Annulla", style: "cancel" },
-              {
-                text: "Impostazioni",
-                onPress: () => {
-                  Linking.openSettings();
-                },
-              },
-            ],
-          );
-        }
-        return { foreground: true, background: false };
-      }
-
-      return { foreground: true, background: true };
-    } catch (error) {
-      console.error("Error requesting background permissions:", error);
-      return { foreground: true, background: false };
+      return background.granted ? "background" : "foreground";
+    } catch {
+      return "foreground";
     }
   }
 
-  async startTracking(walkId: string): Promise<boolean> {
-    const permissions = await this.requestPermissions();
-
-    if (!permissions.foreground) {
-      return false;
-    }
-
-    const startTime = Date.now();
-    await setActiveWalk(walkId, startTime);
-
-    if (!this.isWebMode && permissions.background) {
+  private async startUpdates(mode: GpsMode): Promise<GpsMode> {
+    if (mode === "background") {
       try {
-        const isRunning =
+        const running =
           await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-        if (!isRunning) {
+        if (!running) {
           await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-            accuracy: Location.Accuracy.High,
+            accuracy: Location.Accuracy.BestForNavigation,
+            activityType: Location.ActivityType.Fitness,
             distanceInterval: 5,
-            timeInterval: 5000,
-            showsBackgroundLocationIndicator: true,
+            timeInterval: 3000,
             pausesUpdatesAutomatically: false,
+            showsBackgroundLocationIndicator: true,
             foregroundService: {
-              notificationTitle: "Step Ritual attivo",
-              notificationBody: "Tracciamento camminata in corso",
+              notificationTitle: "Step Ritual",
+              notificationBody: "Camminata in corso",
               notificationColor: "#FF2FB3",
             },
           });
         }
+        return "background";
       } catch (error) {
-        console.error("Error starting background location:", error);
+        console.warn("Background location unavailable:", error);
       }
     }
 
-    this.startForegroundWatcher(walkId);
+    if (mode === "off") return "off";
 
-    return true;
-  }
-
-  private async startForegroundWatcher(walkId: string): Promise<void> {
-    if (this.foregroundSubscription) {
-      this.foregroundSubscription.remove();
-    }
-
-    this.foregroundSubscription = await Location.watchPositionAsync(
+    this.watcher?.remove();
+    this.watcher = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 5,
         timeInterval: 3000,
-        distanceInterval: 3,
       },
-      async (location) => {
-        const activeWalk = await getActiveWalk();
-        if (!activeWalk || activeWalk.isPaused) return;
-
-        await persistLocationsBatch(walkId, [location]);
+      (location) => {
+        persistFixes([toRawFix(location)]).catch((error) =>
+          console.warn("Could not store location:", error),
+        );
       },
     );
+    return "foreground";
   }
 
-  async pauseTracking(): Promise<void> {
-    const activeWalk = await getActiveWalk();
-    if (!activeWalk) return;
+  private async stopUpdates(): Promise<void> {
+    this.watcher?.remove();
+    this.watcher = null;
 
-    if (this.foregroundSubscription) {
-      this.foregroundSubscription.remove();
-      this.foregroundSubscription = null;
-    }
-
-    const pausedTime =
-      Date.now() - activeWalk.startTime - activeWalk.pausedTime;
-    await updateActiveWalkPause(true, pausedTime);
-  }
-
-  async resumeTracking(): Promise<void> {
-    const activeWalk = await getActiveWalk();
-    if (!activeWalk) return;
-
-    await updateActiveWalkPause(false, activeWalk.pausedTime);
-    this.startForegroundWatcher(activeWalk.walkId);
-  }
-
-  async stopTracking(): Promise<{
-    path: LocationPoint[];
-    distanceKm: number;
-    durationSeconds: number;
-  } | null> {
-    const activeWalk = await getActiveWalk();
-    if (!activeWalk) return null;
-
-    if (this.foregroundSubscription) {
-      this.foregroundSubscription.remove();
-      this.foregroundSubscription = null;
-    }
-
-    if (!this.isWebMode) {
-      try {
-        const isRunning =
-          await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-        if (isRunning) {
-          await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
-        }
-      } catch (error) {
-        console.error("Error stopping background location:", error);
+    if (Platform.OS === "web") return;
+    try {
+      if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME)) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
       }
+    } catch (error) {
+      console.warn("Could not stop background location:", error);
+    }
+  }
+
+  async start(walkId: string, startedAt: number): Promise<GpsMode> {
+    await createSession(walkId, startedAt);
+    return this.startUpdates(await this.requestPermissions());
+  }
+
+  // After the app was killed or reloaded mid-walk: re-attach GPS without prompting again.
+  async restore(): Promise<{ session: ActiveSession; gps: GpsMode } | null> {
+    const session = await getActiveSession();
+    if (!session) return null;
+    if (session.pausedAt !== null || session.endedAt !== null) {
+      return { session, gps: "off" };
     }
 
-    const trackPoints = await getTrackPoints(activeWalk.walkId);
-    const path = trackPoints.map((p) => ({
-      latitude: p.latitude,
-      longitude: p.longitude,
-    }));
-
-    const distanceKm = this.calculateTotalDistance(trackPoints);
-    const durationSeconds = Math.floor(
-      (Date.now() - activeWalk.startTime - activeWalk.pausedTime) / 1000,
+    const foreground = await Location.getForegroundPermissionsAsync();
+    if (!foreground.granted) return { session, gps: "off" };
+    const background = isExpoGo
+      ? null
+      : await Location.getBackgroundPermissionsAsync().catch(() => null);
+    const gps = await this.startUpdates(
+      background?.granted ? "background" : "foreground",
     );
-
-    await clearTrackPoints(activeWalk.walkId);
-    await clearActiveWalk();
-
-    return {
-      path,
-      distanceKm,
-      durationSeconds,
-    };
+    return { session, gps };
   }
 
-  private calculateTotalDistance(points: TrackPoint[]): number {
-    let total = 0;
-    for (let i = 1; i < points.length; i++) {
-      total += this.haversineDistance(
-        points[i - 1].latitude,
-        points[i - 1].longitude,
-        points[i].latitude,
-        points[i].longitude,
-      );
-    }
-    return total;
+  async pause(steps: number): Promise<void> {
+    await markPaused(Date.now(), steps);
+    await this.stopUpdates();
   }
 
-  private haversineDistance(
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+  async resume(): Promise<GpsMode> {
+    await markResumed(Date.now());
+    return (await this.restore())?.gps ?? "off";
   }
 
-  async getStatus(): Promise<TrackingStatus> {
-    const activeWalk = await getActiveWalk();
-
-    if (!activeWalk) {
-      return {
-        isTracking: false,
-        isPaused: false,
-        walkId: null,
-        startTime: null,
-        pausedTime: 0,
-      };
-    }
-
-    return {
-      isTracking: true,
-      isPaused: activeWalk.isPaused,
-      walkId: activeWalk.walkId,
-      startTime: activeWalk.startTime,
-      pausedTime: activeWalk.pausedTime,
-    };
+  async finish(steps: number): Promise<ActiveSession | null> {
+    await this.stopUpdates();
+    const session = await getActiveSession();
+    if (!session) return null;
+    await markEnded(session.pausedAt ?? Date.now(), steps);
+    return getActiveSession();
   }
 
-  async getPath(walkId: string): Promise<LocationPoint[]> {
-    const points = await getTrackPoints(walkId);
-    return points.map((p) => ({
-      latitude: p.latitude,
-      longitude: p.longitude,
-    }));
+  saveSteps(steps: number): Promise<void> {
+    return saveSteps(steps);
   }
 
-  async getCurrentDistance(walkId: string): Promise<number> {
-    const points = await getTrackPoints(walkId);
-    return this.calculateTotalDistance(points);
+  getPoints(walkId: string, afterId = 0): Promise<TrackPoint[]> {
+    return getTrackPoints(walkId, afterId);
   }
 
-  async getLastLocation(walkId: string): Promise<LocationPoint | null> {
-    const point = await getLatestTrackPoint(walkId);
-    if (!point) return null;
-    return {
-      latitude: point.latitude,
-      longitude: point.longitude,
-    };
+  async clear(): Promise<void> {
+    await this.stopUpdates();
+    await clearSession();
   }
+}
 
-  async isTracking(): Promise<boolean> {
-    const status = await this.getStatus();
-    return status.isTracking;
-  }
+export function elapsedSeconds(session: ActiveSession, now = Date.now()) {
+  const end = session.endedAt ?? session.pausedAt ?? now;
+  return Math.max(
+    0,
+    Math.floor((end - session.startedAt - session.pausedMs) / 1000),
+  );
 }
 
 export const trackingService = new TrackingService();
