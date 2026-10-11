@@ -37,9 +37,11 @@ import { HoldToStopButton } from "@/components/walk/HoldToStopButton";
 import { PocketLockOverlay } from "@/components/walk/PocketLockOverlay";
 import { WalkSummarySheet } from "@/components/walk/WalkSummarySheet";
 import { Spacing, Colors, BorderRadius, Shadows } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function TrackWalkScreen() {
   const navigation = useNavigation<any>();
+  const { partner } = useAuth();
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
@@ -180,6 +182,17 @@ export default function TrackWalkScreen() {
                   </View>
                 )}
               </NeonButton>
+              <Pressable
+                onPress={() => navigation.navigate("AddWalk")}
+                style={styles.addWalkLink}
+                testID="link-add-walk"
+              >
+                <ThemedText
+                  style={[styles.addWalkText, { color: theme.textSecondary }]}
+                >
+                  Hai camminato senza registrare? Aggiungila a mano
+                </ThemedText>
+              </Pressable>
             </View>
           </View>
         ) : null}
@@ -334,6 +347,7 @@ export default function TrackWalkScreen() {
 
         <WalkSummarySheet
           visible={sessionState === "summary"}
+          partnerName={partner?.nickname ?? null}
           newBadges={newBadges}
           onShowBadges={() => {
             dismissNewBadges();
@@ -405,6 +419,15 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginRight: Spacing.sm,
+  },
+  addWalkLink: {
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  addWalkText: {
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
   startButtonText: {
     color: Colors.light.buttonText,

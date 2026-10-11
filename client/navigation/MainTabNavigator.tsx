@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import DashboardStackNavigator from "@/navigation/DashboardStackNavigator";
@@ -8,6 +9,7 @@ import PremiStackNavigator from "@/navigation/PremiStackNavigator";
 import AccountStackNavigator from "@/navigation/AccountStackNavigator";
 import CustomTabBar from "@/components/CustomTabBar";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
+import { usePendingInviteCode } from "@/lib/inviteLink";
 
 export type MainTabParamList = {
   DashboardTab: undefined;
@@ -21,6 +23,18 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
   useNotificationSync();
+
+  // An invite link opens the account screen, where the code gets filled in.
+  const navigation = useNavigation<any>();
+  const pendingInvite = usePendingInviteCode();
+  useEffect(() => {
+    if (pendingInvite) {
+      navigation.navigate("Main", {
+        screen: "AccountTab",
+        params: { screen: "Account" },
+      });
+    }
+  }, [pendingInvite, navigation]);
 
   return (
     <Tab.Navigator

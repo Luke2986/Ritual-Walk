@@ -15,7 +15,7 @@ import {
 } from "../shared/schema";
 import type { BadgeKey, BadgeWalk } from "../shared/badges";
 import { db } from "./db";
-import { eq, desc, and, sql, gt, gte, lte, inArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, gt, gte, lte, inArray } from "drizzle-orm";
 import {
   applyWalkToStreak,
   lastWalkLocalDateOf,
@@ -44,6 +44,16 @@ export interface EndWalkData {
   stepsTotal: number;
   pathJson: { latitude: number; longitude: number }[];
   localDate: string;
+  together: boolean;
+}
+
+export interface ManualWalkData {
+  distanceKm: number;
+  durationSeconds: number;
+  startedAt: Date;
+  localDate: string;
+  together: boolean;
+  note: string | null;
 }
 
 const completedWalk = and(eq(walks.isActive, false), gt(walks.distanceKm, 0));
@@ -51,6 +61,11 @@ const completedWalk = and(eq(walks.isActive, false), gt(walks.distanceKm, 0));
 // Walks saved before local_date existed only have a UTC timestamp.
 function walkLocalDate(walk: { localDate: string | null; startedAt: Date }) {
   return walk.localDate ?? walk.startedAt.toISOString().slice(0, 10);
+}
+
+// A walk done side by side counts for both people, as if each had recorded it.
+function ritualKm(walk: { distanceKm: number; together: boolean }) {
+  return walk.together ? walk.distanceKm * 2 : walk.distanceKm;
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -67,6 +82,7 @@ async function rebuildCoupleStats(tx: Tx, coupleId: string) {
   const rows = await tx
     .select({
       distanceKm: walks.distanceKm,
+      together: walks.together,
       localDate: walks.localDate,
       startedAt: walks.startedAt,
       endedAt: walks.endedAt,
@@ -83,7 +99,7 @@ async function rebuildCoupleStats(tx: Tx, coupleId: string) {
   await tx
     .update(couples)
     .set({
-      totalKm: rows.reduce((sum, w) => sum + w.distanceKm, 0),
+      totalKm: rows.reduce((sum, w) => sum + ritualKm(w), 0),
       currentStreak: streak.currentStreak,
       bestStreak: sql`greatest(${couples.bestStreak}, ${streak.currentStreak})`,
       lastWalkLocalDate: streak.lastLocalDate,
@@ -337,6 +353,7 @@ export class DatabaseStorage {
           isActive: false,
           endedAt: new Date(),
           localDate: data.localDate,
+          together: data.together,
         })
         .where(
           and(
@@ -375,7 +392,7 @@ export class DatabaseStorage {
           await tx
             .update(couples)
             .set({
-              totalKm: sql`${couples.totalKm} + ${data.distanceKm}`,
+              totalKm: sql`${couples.totalKm} + ${ritualKm(data)}`,
               currentStreak: streak.currentStreak,
               bestStreak: Math.max(couple.bestStreak, streak.currentStreak),
               lastWalkDate: new Date(),
@@ -387,6 +404,78 @@ export class DatabaseStorage {
 
       return { ok: true, walk };
     });
+  }
+
+  // A past walk can fill a gap in the streak, so the stats are rebuilt rather than updated.
+  async addManualWalk(
+    userId: string,
+    coupleId: string | null,
+    data: ManualWalkData,
+  ): Promise<Walk> {
+    return db.transaction(async (tx) => {
+      const [walk] = await tx
+        .insert(walks)
+        .values({
+          userId,
+          coupleId,
+          distanceKm: data.distanceKm,
+          durationSeconds: data.durationSeconds,
+          stepsTotal: 0,
+          pathJson: [],
+          isActive: false,
+          startedAt: data.startedAt,
+          endedAt: new Date(
+            data.startedAt.getTime() + data.durationSeconds * 1000,
+          ),
+          localDate: data.localDate,
+          together: data.together,
+          manual: true,
+          note: data.note,
+        })
+        .returning();
+      if (coupleId) await rebuildCoupleStats(tx, coupleId);
+      return walk;
+    });
+  }
+
+  async updateWalkNote(
+    walkId: string,
+    userId: string,
+    note: string | null,
+  ): Promise<boolean> {
+    const updated = await db
+      .update(walks)
+      .set({ note })
+      .where(
+        and(
+          eq(walks.id, walkId),
+          eq(walks.userId, userId),
+          eq(walks.isActive, false),
+        ),
+      )
+      .returning({ id: walks.id });
+    return updated.length > 0;
+  }
+
+  // Whether `userId` already walked on `localDate`, alone or side by side with the other person.
+  async walkedOn(
+    coupleId: string,
+    userId: string,
+    localDate: string,
+  ): Promise<boolean> {
+    const [row] = await db
+      .select({ id: walks.id })
+      .from(walks)
+      .where(
+        and(
+          eq(walks.coupleId, coupleId),
+          completedWalk,
+          eq(walks.localDate, localDate),
+          or(eq(walks.userId, userId), eq(walks.together, true)),
+        ),
+      )
+      .limit(1);
+    return !!row;
   }
 
   async deleteWalk(walkId: string, userId: string): Promise<boolean> {
@@ -469,6 +558,8 @@ export class DatabaseStorage {
         distanceKm: walks.distanceKm,
         durationSeconds: walks.durationSeconds,
         startedAt: walks.startedAt,
+        together: walks.together,
+        manual: walks.manual,
       })
       .from(walks)
       .where(and(eq(walks.coupleId, coupleId), completedWalk))
@@ -484,6 +575,8 @@ export class DatabaseStorage {
         distanceKm: walks.distanceKm,
         durationSeconds: walks.durationSeconds,
         startedAt: walks.startedAt,
+        together: walks.together,
+        manual: walks.manual,
       })
       .from(walks)
       .where(
@@ -497,23 +590,36 @@ export class DatabaseStorage {
       .orderBy(desc(walks.startedAt));
   }
 
+  // A walk done side by side appears once for each person.
   async getBadgeWalks(coupleId: string): Promise<BadgeWalk[]> {
-    const rows = await db
-      .select({
-        userId: walks.userId,
-        distanceKm: walks.distanceKm,
-        localDate: walks.localDate,
-        startedAt: walks.startedAt,
-        endedAt: walks.endedAt,
-      })
-      .from(walks)
-      .where(and(eq(walks.coupleId, coupleId), completedWalk));
-    return rows.map((w) => ({
-      userId: w.userId,
-      distanceKm: w.distanceKm,
-      localDate: walkLocalDate(w),
-      endedAt: w.endedAt ?? w.startedAt,
-    }));
+    const [rows, members] = await Promise.all([
+      db
+        .select({
+          userId: walks.userId,
+          distanceKm: walks.distanceKm,
+          together: walks.together,
+          localDate: walks.localDate,
+          startedAt: walks.startedAt,
+          endedAt: walks.endedAt,
+        })
+        .from(walks)
+        .where(and(eq(walks.coupleId, coupleId), completedWalk)),
+      this.getCoupleUsers(coupleId),
+    ]);
+    return rows.flatMap((w) => {
+      const walk = {
+        distanceKm: w.distanceKm,
+        localDate: walkLocalDate(w),
+        endedAt: w.endedAt ?? w.startedAt,
+      };
+      const other = members.find((m) => m.id !== w.userId);
+      return w.together && other
+        ? [
+            { ...walk, userId: w.userId },
+            { ...walk, userId: other.id },
+          ]
+        : [{ ...walk, userId: w.userId }];
+    });
   }
 
   async getCoupleBadges(coupleId: string) {

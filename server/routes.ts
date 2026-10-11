@@ -16,6 +16,8 @@ import {
   resetPasswordSchema,
   joinCoupleSchema,
   endWalkSchema,
+  manualWalkSchema,
+  walkNoteSchema,
   statsQuerySchema,
   badgesQuerySchema,
   notificationPrefsUpdateSchema,
@@ -24,8 +26,10 @@ import {
   type NotificationPrefs,
 } from "../shared/schema";
 
-const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
+// A week: the other person may not see the message the same day.
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_STATS_RANGE_MS = 400 * 24 * 60 * 60 * 1000;
+const MAX_MANUAL_WALK_AGE_MS = 31 * 24 * 60 * 60 * 1000;
 const RITUAL_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const ATTEMPT_WINDOW_SECONDS = 15 * 60;
@@ -129,8 +133,8 @@ const DEFAULT_PREFS = {
   reminderMessage: null,
   partnerAlertsEnabled: true,
   weeklySummaryEnabled: true,
-  weeklySummaryDay: 7,
-  weeklySummaryTime: "10:00",
+  weeklySummaryDay: 5,
+  weeklySummaryTime: "19:00",
   quietHoursEnabled: false,
   quietStart: "22:00",
   quietEnd: "08:00",
@@ -169,6 +173,39 @@ function getJwtSecret(): string {
     throw new Error("JWT_SECRET must be set");
   }
   return secret;
+}
+
+// `code` is checked against /^[A-Z0-9]{6,8}$/ before it gets here, so it is safe in HTML.
+function invitePage(code: string | null): string {
+  const body = code
+    ? `<h1>Camminiamo insieme?</h1>
+      <p>Hai ricevuto un invito per Step Ritual, il rituale delle camminate a due.</p>
+      <a class="button" href="stepritual://invito?code=${code}">Apri Step Ritual</a>
+      <p class="hint">Se il pulsante non funziona, apri l'app e inserisci il codice in Account:</p>
+      <p class="code">${code}</p>
+      <p class="hint">Il codice vale 7 giorni.</p>`
+    : `<h1>Invito non valido</h1>
+      <p>Il link sembra incompleto. Chiedi a chi ti ha invitato di mandarti di nuovo il codice.</p>`;
+  return `<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invito a Step Ritual</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #150313; color: #fff8ee; font-family: system-ui, -apple-system, sans-serif; }
+  main { max-width: 360px; padding: 32px 24px; text-align: center; }
+  h1 { font-size: 26px; margin: 0 0 12px; }
+  p { line-height: 1.5; margin: 0 0 20px; }
+  .button { display: block; padding: 16px; border-radius: 999px; background: #ff2fb3; color: #fff;
+    font-weight: 700; text-decoration: none; margin-bottom: 24px; }
+  .hint { font-size: 14px; opacity: 0.8; margin-bottom: 8px; }
+  .code { font-size: 32px; font-weight: 800; letter-spacing: 6px; margin: 8px 0 16px; }
+</style>
+</head>
+<body><main>${body}</main></body>
+</html>`;
 }
 
 export function registerRoutes(app: Express): void {
@@ -243,9 +280,21 @@ export function registerRoutes(app: Express): void {
     return storage.addCoupleBadges(coupleId, earnedBadges(walks));
   }
 
-  async function notifyPartnerOfWalk(walker: User, distanceKm: number) {
-    if (!walker.coupleId || distanceKm <= 0) return;
-    const partner = (await storage.getCoupleUsers(walker.coupleId)).find(
+  // A walk "together" needs someone to walk with: without a linked person it is a solo walk.
+  async function canWalkTogether(user: User): Promise<boolean> {
+    if (!user.coupleId) return false;
+    const members = await storage.getCoupleUsers(user.coupleId);
+    return members.some((member) => member.id !== user.id);
+  }
+
+  async function notifyPartnerOfWalk(
+    walker: User,
+    walk: { distanceKm: number; localDate: string; together: boolean },
+  ) {
+    // Side by side, the other person already knows: no alert.
+    if (!walker.coupleId || walk.distanceKm <= 0 || walk.together) return;
+    const coupleId = walker.coupleId;
+    const partner = (await storage.getCoupleUsers(coupleId)).find(
       (u) => u.id !== walker.id,
     );
     const prefs = partner && (await storage.getNotificationPrefs(partner.id));
@@ -264,12 +313,18 @@ export function registerRoutes(app: Express): void {
       if (isInQuietHours(localTime, prefs.quietStart, prefs.quietEnd)) return;
     }
 
-    const km = distanceKm.toLocaleString("it-IT", { maximumFractionDigits: 1 });
-    const result = await sendExpoPush(
-      prefs.pushToken,
-      "Step Ritual",
-      `${walker.nickname} ha appena camminato ${km} km. Tocca a te?`,
-    );
+    const km = walk.distanceKm.toLocaleString("it-IT", {
+      maximumFractionDigits: 1,
+    });
+    // Speak of the day together: it's what the ritual counts.
+    const message = (await storage.walkedOn(
+      coupleId,
+      partner.id,
+      walk.localDate,
+    ))
+      ? `Oggi è un giorno insieme: anche ${walker.nickname} ha camminato ${km} km.`
+      : `${walker.nickname} ha camminato ${km} km. Se cammini anche tu oggi, è un giorno insieme.`;
+    const result = await sendExpoPush(prefs.pushToken, "Step Ritual", message);
     if (result === "unregistered") {
       await storage.clearPushToken(partner.id, prefs.pushToken);
     }
@@ -277,6 +332,16 @@ export function registerRoutes(app: Express): void {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
+  });
+
+  // The page an invite link opens: a button that opens the app with the code, and the code
+  // itself to type by hand (Expo Go can't open stepritual:// links).
+  app.get("/invito/:code", (req, res) => {
+    const code = req.params.code.toUpperCase();
+    if (!/^[A-Z0-9]{6,8}$/.test(code)) {
+      return res.status(404).type("html").send(invitePage(null));
+    }
+    res.type("html").send(invitePage(code));
   });
 
   // Auth
@@ -719,8 +784,12 @@ export function registerRoutes(app: Express): void {
     "/api/walks/:walkId/end",
     authMiddleware,
     handle(async (req, res) => {
-      const data = endWalkSchema.parse(req.body);
+      const parsed = endWalkSchema.parse(req.body);
       const user = req.user!;
+      const data = {
+        ...parsed,
+        together: parsed.together && (await canWalkTogether(user)),
+      };
 
       const result = await storage.endWalk(
         req.params.walkId,
@@ -751,10 +820,43 @@ export function registerRoutes(app: Express): void {
           : [];
 
       // Awaited because serverless hosts may stop work after the response.
-      await notifyPartnerOfWalk(user, data.distanceKm).catch((error) =>
+      await notifyPartnerOfWalk(user, data).catch((error) =>
         console.warn("Partner alert failed:", error),
       );
       res.json({ walk: result.walk, newBadges });
+    }),
+  );
+
+  // A walk added afterwards, e.g. forgotten or recorded with another app. It sends no alert:
+  // it may be days old.
+  app.post(
+    "/api/walks/manual",
+    authMiddleware,
+    handle(async (req, res) => {
+      const data = manualWalkSchema.parse(req.body);
+      const user = req.user!;
+
+      const startedAt = new Date(data.startedAt);
+      const age = Date.now() - startedAt.getTime();
+      if (age < -5 * 60 * 1000 || age > MAX_MANUAL_WALK_AGE_MS) {
+        return res.status(400).json({
+          error: "INVALID_INPUT",
+          message: "Puoi aggiungere camminate degli ultimi 30 giorni",
+        });
+      }
+
+      const walk = await storage.addManualWalk(user.id, user.coupleId, {
+        ...data,
+        startedAt,
+        together: data.together && (await canWalkTogether(user)),
+      });
+      const newBadges = user.coupleId
+        ? await awardBadges(user.coupleId).catch((error) => {
+            console.warn("Badge update failed:", error);
+            return [];
+          })
+        : [];
+      res.json({ walk, newBadges });
     }),
   );
 
@@ -875,6 +977,12 @@ export function registerRoutes(app: Express): void {
 
       const owner =
         walk.userId === user.id ? user : await storage.getUser(walk.userId);
+      const companion =
+        walk.together && walk.coupleId
+          ? (await storage.getCoupleUsers(walk.coupleId)).find(
+              (member) => member.id !== walk.userId,
+            )
+          : undefined;
 
       res.json({
         id: walk.id,
@@ -886,7 +994,30 @@ export function registerRoutes(app: Express): void {
         startedAt: walk.startedAt,
         endedAt: walk.endedAt,
         userNickname: owner?.nickname || "Utente",
+        together: walk.together,
+        companionNickname: companion?.nickname ?? null,
+        manual: walk.manual,
+        note: walk.note,
       });
+    }),
+  );
+
+  app.put(
+    "/api/walks/:walkId/note",
+    authMiddleware,
+    handle(async (req, res) => {
+      const { note } = walkNoteSchema.parse(req.body);
+      const updated = await storage.updateWalkNote(
+        req.params.walkId,
+        req.user!.id,
+        note,
+      );
+      if (!updated) {
+        return res
+          .status(404)
+          .json({ error: "NOT_FOUND", message: "Camminata non trovata" });
+      }
+      res.json({ ok: true, note });
     }),
   );
 

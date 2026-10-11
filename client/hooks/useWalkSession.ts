@@ -283,57 +283,61 @@ export function useWalkSession() {
     if (walkId) await pullNewPoints(walkId).catch(() => {});
   }, [sessionState, session, commitSteps, walkId, pullNewPoints]);
 
-  const confirmSummary = useCallback(async () => {
-    if (!session || isSaving) return;
-    setIsSaving(true);
-    setSaveError(null);
+  const confirmSummary = useCallback(
+    async (together = false) => {
+      if (!session || isSaving) return;
+      setIsSaving(true);
+      setSaveError(null);
 
-    let earned: BadgeKey[] = [];
-    try {
-      const response = await apiRequest(
-        "POST",
-        `/api/walks/${session.walkId}/end`,
-        {
-          distanceKm: Math.min(Math.round(distanceKm * 1000) / 1000, 200),
-          durationSeconds: Math.min(durationSeconds, 24 * 60 * 60),
-          stepsTotal: steps,
-          pathJson: simplifyPath(points, MAX_PATH_POINTS),
-          localDate: toLocalDateKey(new Date(session.startedAt)),
-        },
-      );
-      const body = await response.json().catch(() => null);
-      earned = Array.isArray(body?.newBadges) ? body.newBadges : [];
-    } catch (error) {
-      // 409 means an earlier attempt already saved it (e.g. the response was lost).
-      if (!(error instanceof ApiError && error.status === 409)) {
-        setSaveError(
-          error instanceof ApiError && error.status === 404
-            ? "Questa camminata non esiste più sul server (forse ne hai iniziata un'altra da un altro dispositivo)."
-            : "Salvataggio non riuscito. Controlla la connessione e riprova.",
+      let earned: BadgeKey[] = [];
+      try {
+        const response = await apiRequest(
+          "POST",
+          `/api/walks/${session.walkId}/end`,
+          {
+            distanceKm: Math.min(Math.round(distanceKm * 1000) / 1000, 200),
+            durationSeconds: Math.min(durationSeconds, 24 * 60 * 60),
+            stepsTotal: steps,
+            pathJson: simplifyPath(points, MAX_PATH_POINTS),
+            localDate: toLocalDateKey(new Date(session.startedAt)),
+            together,
+          },
         );
-        setIsSaving(false);
-        return;
+        const body = await response.json().catch(() => null);
+        earned = Array.isArray(body?.newBadges) ? body.newBadges : [];
+      } catch (error) {
+        // 409 means an earlier attempt already saved it (e.g. the response was lost).
+        if (!(error instanceof ApiError && error.status === 409)) {
+          setSaveError(
+            error instanceof ApiError && error.status === 404
+              ? "Questa camminata non esiste più sul server (forse ne hai iniziata un'altra da un altro dispositivo)."
+              : "Salvataggio non riuscito. Controlla la connessione e riprova.",
+          );
+          setIsSaving(false);
+          return;
+        }
       }
-    }
 
-    await trackingService.clear().catch(() => {});
-    reset();
-    setIsSaving(false);
-    setNewBadges(earned);
-    queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
-    invalidateBadges();
-    refreshUser().catch(() => {});
-  }, [
-    session,
-    isSaving,
-    distanceKm,
-    durationSeconds,
-    steps,
-    points,
-    reset,
-    refreshUser,
-  ]);
+      await trackingService.clear().catch(() => {});
+      reset();
+      setIsSaving(false);
+      setNewBadges(earned);
+      queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
+      invalidateBadges();
+      refreshUser().catch(() => {});
+    },
+    [
+      session,
+      isSaving,
+      distanceKm,
+      durationSeconds,
+      steps,
+      points,
+      reset,
+      refreshUser,
+    ],
+  );
 
   const dismissNewBadges = useCallback(() => setNewBadges([]), []);
 

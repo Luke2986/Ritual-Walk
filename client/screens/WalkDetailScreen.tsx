@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
-  ScrollView,
   Pressable,
   ActivityIndicator,
   Alert,
@@ -22,6 +21,9 @@ import {
 } from "@/components/MapViewCompat";
 import { ThemedText } from "@/components/ThemedText";
 import { StatCard } from "@/components/StatCard";
+import { NeonInput } from "@/components/NeonInput";
+import { NeonButton } from "@/components/NeonButton";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, Colors, BorderRadius } from "@/constants/theme";
@@ -46,6 +48,74 @@ interface WalkDetail {
   endedAt: string | null;
   pathJson: { latitude: number; longitude: number }[] | null;
   userNickname: string;
+  together: boolean;
+  companionNickname: string | null;
+  manual: boolean;
+  note: string | null;
+}
+
+// The owner can write a line to remember the walk by; the other person reads it.
+function WalkNote({
+  walkId,
+  note,
+  editable,
+}: {
+  walkId: string;
+  note: string | null;
+  editable: boolean;
+}) {
+  const { theme } = useTheme();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState(note ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => setDraft(note ?? ""), [note]);
+
+  if (!editable) {
+    return note ? (
+      <View
+        style={[styles.noteCard, { backgroundColor: theme.cardBackground }]}
+      >
+        <ThemedText style={[styles.noteLabel, { color: theme.textSecondary }]}>
+          NOTA
+        </ThemedText>
+        <ThemedText>{note}</ThemedText>
+      </View>
+    ) : null;
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError("");
+    try {
+      await apiRequest("PUT", `/api/walks/${walkId}/note`, { note: draft });
+      await queryClient.invalidateQueries({ queryKey: ["/api/walks", walkId] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Salvataggio non riuscito");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.noteSection}>
+      <NeonInput
+        label="Nota"
+        placeholder="Un ricordo di questa camminata"
+        value={draft}
+        onChangeText={setDraft}
+        maxLength={200}
+        error={error || undefined}
+        testID="input-walk-note"
+      />
+      {draft.trim() !== (note ?? "") ? (
+        <NeonButton onPress={handleSave} disabled={isSaving} size="small">
+          {isSaving ? "Salvataggio..." : "Salva nota"}
+        </NeonButton>
+      ) : null}
+    </View>
+  );
 }
 
 export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
@@ -150,6 +220,14 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
   }
 
   const path = walk.pathJson ?? [];
+  const kind =
+    walk.together && walk.manual
+      ? "Camminata insieme, aggiunta a mano"
+      : walk.together
+        ? "Camminata insieme"
+        : walk.manual
+          ? "Aggiunta a mano"
+          : null;
 
   const speed =
     walk.durationSeconds > 0
@@ -161,7 +239,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
       colors={[theme.backgroundRoot, theme.backgroundDefault]}
       style={styles.gradient}
     >
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
         style={styles.container}
         contentContainerStyle={[
           styles.content,
@@ -173,10 +251,19 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <ThemedText type="h3">{walk.userNickname}</ThemedText>
+          <ThemedText type="h3">
+            {walk.together && walk.companionNickname
+              ? `${walk.userNickname} e ${walk.companionNickname}`
+              : walk.userNickname}
+          </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
             {formatDate(walk.startedAt)}
           </ThemedText>
+          {kind ? (
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {kind}
+            </ThemedText>
+          ) : null}
         </View>
 
         <View style={styles.mapContainer}>
@@ -213,7 +300,9 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
                 type="small"
                 style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
               >
-                Percorso GPS non disponibile per questa camminata
+                {walk.manual
+                  ? "Camminata aggiunta a mano, senza percorso"
+                  : "Percorso GPS non disponibile per questa camminata"}
               </ThemedText>
             </View>
           )}
@@ -262,6 +351,12 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
           ) : null}
         </View>
 
+        <WalkNote
+          walkId={walk.id}
+          note={walk.note}
+          editable={walk.userId === user?.id}
+        />
+
         {walk.userId === user?.id ? (
           <Pressable
             style={[styles.deleteButton, isDeleting && styles.deleteDisabled]}
@@ -281,7 +376,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
             )}
           </Pressable>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
     </LinearGradient>
   );
 }
@@ -321,6 +416,19 @@ const styles = StyleSheet.create({
   statsGrid: {},
   statsRow: {
     flexDirection: "row",
+  },
+  noteSection: {
+    marginTop: Spacing.xl,
+  },
+  noteCard: {
+    marginTop: Spacing.xl,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.xs,
+  },
+  noteLabel: {
+    fontSize: 11,
+    letterSpacing: 1,
   },
   deleteButton: {
     flexDirection: "row",

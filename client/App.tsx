@@ -13,8 +13,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppFrame } from "@/components/AppFrame";
+import { useInviteLinkListener } from "@/lib/inviteLink";
 
 import "@/lib/tracking/backgroundLocationTask";
+
+function InviteLinks() {
+  useInviteLinkListener();
+  return null;
+}
 
 export default function App() {
   return (
@@ -26,6 +32,7 @@ export default function App() {
               <GestureHandlerRootView style={styles.root}>
                 <KeyboardProvider>
                   <NavigationContainer>
+                    <InviteLinks />
                     <RootStackNavigator />
                   </NavigationContainer>
                   <StatusBar style="light" />

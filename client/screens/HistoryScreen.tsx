@@ -217,7 +217,13 @@ export default function HistoryScreen() {
                 distance={walk.distanceKm}
                 duration={walk.durationSeconds}
                 date={walk.startedAt}
-                userNickname={nicknameOf(walk.userId)}
+                userNickname={
+                  walk.together
+                    ? `${nicknameOf(walk.userId)} e ${walk.userId === user?.id ? partnerName : (user?.nickname ?? "")}`
+                    : nicknameOf(walk.userId)
+                }
+                together={walk.together}
+                manual={walk.manual}
                 personColor={
                   walk.userId === user?.id
                     ? PersonColors.me

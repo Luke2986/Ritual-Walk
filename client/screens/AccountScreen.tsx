@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -26,6 +26,12 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spacing, BorderRadius, PersonColors } from "@/constants/theme";
 import type { AccountStackParamList } from "@/navigation/AccountStackNavigator";
+import { getApiUrl } from "@/lib/query-client";
+import {
+  clearPendingInviteCode,
+  inviteLinkFor,
+  usePendingInviteCode,
+} from "@/lib/inviteLink";
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -112,6 +118,25 @@ export default function AccountScreen() {
   const [isCanceling, setIsCanceling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // A code received through an invite link: fill it in, or explain why it can't be used.
+  const pendingInvite = usePendingInviteCode();
+  useEffect(() => {
+    if (!pendingInvite) return;
+    clearPendingInviteCode();
+    const reason =
+      couple?.status === "active"
+        ? "Il tuo account è già collegato. Per usare il nuovo codice interrompi prima il rituale attuale."
+        : couple
+          ? "Hai un tuo invito in sospeso. Annullalo per usare il codice ricevuto."
+          : null;
+    if (!reason) {
+      setRitualCodeInput(pendingInvite);
+      return;
+    }
+    if (Platform.OS === "web") window.alert(reason);
+    else Alert.alert("Codice ricevuto", reason);
+  }, [pendingInvite, couple]);
+
   const handleNavigateToNotifications = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate("Notifications");
@@ -145,8 +170,9 @@ export default function AccountScreen() {
   const handleShareCode = async () => {
     if (couple?.ritualCode) {
       try {
+        const link = inviteLinkFor(getApiUrl(), couple.ritualCode);
         await Share.share({
-          message: `Camminiamo insieme su Step Ritual? Il mio codice invito è: ${couple.ritualCode}`,
+          message: `Camminiamo insieme su Step Ritual? Apri questo link: ${link}\nOppure inserisci il codice ${couple.ritualCode} in Account.`,
         });
       } catch (error) {
         handleCopyCode();

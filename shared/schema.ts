@@ -70,6 +70,11 @@ export const walks = pgTable("walks", {
   endedAt: timestamp("ended_at"),
   // Calendar day (YYYY-MM-DD) in the walker's timezone, used to rebuild the streak.
   localDate: varchar("local_date", { length: 10 }),
+  // Walked side by side with the other person: one recording counts for both.
+  together: boolean("together").notNull().default(false),
+  // Added afterwards by hand instead of tracked live (no GPS route).
+  manual: boolean("manual").notNull().default(false),
+  note: varchar("note", { length: 200 }),
 });
 
 // Badges earned by a ritual (couple). Definitions live in shared/badges.ts; rows are never
@@ -115,10 +120,10 @@ export const notificationPrefs = pgTable("notification_prefs", {
   weeklySummaryEnabled: boolean("weekly_summary_enabled")
     .notNull()
     .default(true),
-  weeklySummaryDay: integer("weekly_summary_day").notNull().default(7),
+  weeklySummaryDay: integer("weekly_summary_day").notNull().default(5),
   weeklySummaryTime: varchar("weekly_summary_time", { length: 5 })
     .notNull()
-    .default("10:00"),
+    .default("19:00"),
   quietHoursEnabled: boolean("quiet_hours_enabled").notNull().default(false),
   quietStart: varchar("quiet_start", { length: 5 }).notNull().default("22:00"),
   quietEnd: varchar("quiet_end", { length: 5 }).notNull().default("08:00"),
@@ -284,7 +289,35 @@ export const endWalkSchema = z.object({
     .max(5000)
     .default([]),
   localDate: localDateField,
+  together: z.boolean().default(false),
 });
+
+const noteField = z
+  .string()
+  .trim()
+  .max(200, "La nota può avere al massimo 200 caratteri")
+  .transform((note) => note || null)
+  .nullable();
+
+// A walk added afterwards: no route, a positive distance and duration.
+export const manualWalkSchema = z.object({
+  distanceKm: z
+    .number()
+    .finite()
+    .gt(0, "Inserisci i km percorsi")
+    .max(200, "Massimo 200 km"),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(60, "Inserisci almeno un minuto")
+    .max(24 * 60 * 60),
+  startedAt: z.string().datetime({ offset: true }),
+  localDate: localDateField,
+  together: z.boolean().default(false),
+  note: noteField.default(null),
+});
+
+export const walkNoteSchema = z.object({ note: noteField });
 
 export const badgesQuerySchema = z.object({ today: localDateField });
 

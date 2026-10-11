@@ -14,6 +14,7 @@ import { getBadge, type BadgeKey } from "@shared/badges";
 import { ThemedText } from "@/components/ThemedText";
 import { NeonButton } from "@/components/NeonButton";
 import { BadgeIcon } from "@/components/BadgeIcon";
+import { TogetherToggle } from "@/components/walk/TogetherToggle";
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_APP_WIDTH } from "@/hooks/useAppWidth";
 import { Colors, Spacing, BorderRadius, Shadows } from "@/constants/theme";
@@ -26,7 +27,9 @@ interface WalkSummarySheetProps {
   durationFormatted: string;
   isSaving: boolean;
   error: string | null;
-  onConfirm: () => void;
+  // The linked person's name, when there is one: offers to count the walk for both.
+  partnerName: string | null;
+  onConfirm: (together: boolean) => void;
   onDiscard: () => void;
   // After saving: badges just earned. When there are some, the sheet shows them instead.
   newBadges: BadgeKey[];
@@ -41,6 +44,7 @@ export function WalkSummarySheet({
   durationFormatted,
   isSaving,
   error,
+  partnerName,
   onConfirm,
   onDiscard,
   newBadges,
@@ -49,8 +53,13 @@ export function WalkSummarySheet({
 }: WalkSummarySheetProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const [together, setTogether] = React.useState(false);
   const earned = newBadges.flatMap((key) => getBadge(key) ?? []);
   const celebrating = earned.length > 0;
+
+  React.useEffect(() => {
+    if (visible) setTogether(false);
+  }, [visible]);
 
   React.useEffect(() => {
     if (celebrating) {
@@ -71,7 +80,7 @@ export function WalkSummarySheet({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => {},
     );
-    onConfirm();
+    onConfirm(!!partnerName && together);
   };
 
   const handleDiscard = () => {
@@ -238,6 +247,17 @@ export function WalkSummarySheet({
                 </View>
               </View>
 
+              {partnerName ? (
+                <View style={styles.together}>
+                  <TogetherToggle
+                    partnerName={partnerName}
+                    value={together}
+                    onChange={setTogether}
+                    disabled={isSaving}
+                  />
+                </View>
+              ) : null}
+
               {error ? (
                 <ThemedText style={[styles.errorText, { color: theme.error }]}>
                   {error}
@@ -365,6 +385,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
+  },
+  together: {
+    marginBottom: Spacing.xl,
   },
   errorText: {
     fontSize: 14,

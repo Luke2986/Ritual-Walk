@@ -10,6 +10,9 @@ export interface WalkData {
   distanceKm: number;
   durationSeconds: number;
   startedAt: string;
+  // Walked side by side: counts for both people.
+  together?: boolean;
+  manual?: boolean;
 }
 
 export interface StatsResponse {
@@ -96,9 +99,10 @@ function addKm(
   partnerId: string | null,
 ) {
   if (index < 0 || index >= stats.ioKm.length) return;
-  if (walk.userId === userId) {
+  if (walk.userId === userId || walk.together) {
     stats.ioKm[index] += walk.distanceKm;
-  } else if (walk.userId === partnerId) {
+  }
+  if (walk.userId === partnerId || (walk.together && partnerId)) {
     stats.partnerKm[index] += walk.distanceKm;
   }
 }
@@ -185,9 +189,10 @@ export function buildActivityByDate(
       activityMap[dateKey] = { me: false, partner: false };
     }
 
-    if (walk.userId === userId) {
+    if (walk.userId === userId || walk.together) {
       activityMap[dateKey].me = true;
-    } else if (walk.userId === partnerId) {
+    }
+    if (walk.userId === partnerId || (walk.together && partnerId)) {
       activityMap[dateKey].partner = true;
     }
   });

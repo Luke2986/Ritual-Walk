@@ -8,13 +8,15 @@
 
 App per camminare in due e farne un rituale quotidiano, con chi vuoi: partner, amicizie, familiari. Il tipo di legame non conta, conta il rituale che costruite.
 
-- **Rituale a due**: uno genera un _Ritual Code_, l'altra persona lo inserisce e i due account si collegano.
+- **Rituale a due**: uno genera un _Ritual Code_ e lo condivide con un link; l'altra persona apre il link o inserisce il codice, valido 7 giorni, e i due account si collegano.
 - **Camminata con GPS**: mappa in tempo reale del percorso (tipo Strava), distanza, tempo, passi, pausa/ripresa e blocco schermo "in tasca".
+- **Insieme o separati**: se camminate fianco a fianco basta registrare la camminata con un telefono e segnarla come fatta insieme, vale per entrambi. Una camminata dimenticata, o registrata con un'altra app, si aggiunge a mano (ultimi 7 giorni), e a ogni camminata si può aggiungere una nota per ricordarla.
+- **Giorni insieme**: il numero principale della home sono i giorni della settimana in cui avete camminato entrambi.
 - **Storico**: grafici settimana/mese/anno di entrambi, elenco delle camminate e dettaglio con la mappa del percorso.
 - **Streak condiviso**: i giorni consecutivi in cui almeno uno dei due ha camminato, più il record personale.
 - **Premi**: badge del rituale per giorni insieme, streak, km e numero di camminate. Ogni premio mostra quanto manca e la data in cui l'avete sbloccato, e a fine camminata compare quello appena raggiunto. Eliminare una camminata non toglie un premio già ottenuto.
-- **Promemoria**: notifiche locali nei giorni e all'ora che scegli, riepilogo settimanale e ore silenziose.
-- **Avvisi di camminata** (facoltativi): quando finisci una camminata, l'altra persona riceve una notifica, ad esempio "Luca ha appena camminato 3 km".
+- **Promemoria**: notifiche locali nei giorni e all'ora che scegli, riepilogo settimanale (di base il venerdì sera, quando c'è ancora tempo per un giorno insieme) e ore silenziose.
+- **Avvisi di camminata** (facoltativi): quando finisci una camminata, l'altra persona riceve una notifica, ad esempio "Luca ha camminato 3 km. Se cammini anche tu oggi, è un giorno insieme". Non arriva per le camminate fatte insieme o aggiunte a mano.
 - **Account**: recupero della password via email (facoltativo), eliminazione di una singola camminata e dell'intero account direttamente dall'app. Dopo troppi tentativi di accesso sbagliati il login si blocca per 15 minuti.
 
 L'interfaccia è in italiano.
@@ -108,7 +110,7 @@ Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmat
 
 #### Avvisi di camminata (push, facoltativi)
 
-Quando uno dei due finisce una camminata, l'altro riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose di chi la riceve. Per attivarli:
+Quando uno dei due finisce una camminata, l'altra persona riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose di chi la riceve. Per attivarli:
 
 1. Crea un account gratuito su [expo.dev](https://expo.dev) ed esegui `npx eas-cli@latest init`: scrive il _project ID_ in `app.json`, dove lo trovano sia `npm start` sia le build EAS.
 2. In alternativa puoi metterlo in `EAS_PROJECT_ID` nel `.env`, ma vale solo per `npm start` con Expo Go: i comandi `eas` non leggono il `.env`, quindi per le build deve stare in `app.json`.
@@ -152,13 +154,15 @@ Per un uso commerciale serve un accordo separato con l'autore. Chi ridistribuisc
 
 An app for two people who want to make walking a daily ritual, with whoever you choose: a partner, a friend, a family member. The kind of bond doesn't matter, the ritual you build does.
 
-- **Ritual for two**: one person generates a _Ritual Code_, the other enters it, and the two accounts are linked.
+- **Ritual for two**: one person generates a _Ritual Code_ and shares it as a link; the other opens the link or enters the code, valid for 7 days, and the two accounts are linked.
 - **GPS walks**: live map of your route (like Strava), distance, time, steps, pause/resume and an "in your pocket" screen lock.
+- **Together or apart**: when you walk side by side, one phone records the walk and marks it as together, and it counts for both. A forgotten walk, or one recorded with another app, can be added by hand (last 7 days), and any walk can get a note to remember it by.
+- **Days together**: the home screen's main number is the days this week on which you both walked.
 - **History**: weekly/monthly/yearly charts for both of you, a list of walks and a detail view with the route map.
 - **Shared streak**: consecutive days on which at least one of you walked, plus your best streak.
 - **Rewards**: ritual badges for days together, streaks, km and number of walks. Each badge shows what is missing and the date you earned it, and the end of a walk shows any badge you just reached. Deleting a walk never takes away a badge you already earned.
-- **Reminders**: local notifications on the days and time you choose, a weekly summary and quiet hours.
-- **Walk alerts** (optional): when you finish a walk, the other person gets a notification such as "Luca ha appena camminato 3 km" ("Luca just walked 3 km").
+- **Reminders**: local notifications on the days and time you choose, a weekly summary (by default on Friday evening, while there is still time for a day together) and quiet hours.
+- **Walk alerts** (optional): when you finish a walk, the other person gets a notification such as "Luca ha camminato 3 km. Se cammini anche tu oggi, è un giorno insieme" ("Luca walked 3 km. If you walk today too, it's a day together"). It isn't sent for walks done together or added by hand.
 - **Account**: password recovery by email (optional), and deleting a single walk or your whole account right from the app. After too many failed sign-in attempts, login is locked for 15 minutes.
 
 The user interface is in Italian.

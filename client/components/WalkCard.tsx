@@ -22,6 +22,9 @@ interface WalkCardProps {
   userNickname: string;
   // The walker's color (PersonColors.me or PersonColors.partner).
   personColor: string;
+  // Walked side by side (counts for both) / added by hand instead of tracked.
+  together?: boolean;
+  manual?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
 }
@@ -34,6 +37,8 @@ export function WalkCard({
   date,
   userNickname,
   personColor,
+  together = false,
+  manual = false,
   onPress,
   style,
 }: WalkCardProps) {
@@ -90,11 +95,23 @@ export function WalkCard({
         <View style={styles.header}>
           <View style={styles.userInfo}>
             <View style={[styles.avatar, { backgroundColor: personColor }]}>
-              <Feather name="user" size={16} color={theme.buttonText} />
+              <Feather
+                name={together ? "users" : "user"}
+                size={16}
+                color={theme.buttonText}
+              />
             </View>
-            <ThemedText type="body" style={styles.nickname}>
+            <ThemedText type="body" style={styles.nickname} numberOfLines={1}>
               {userNickname}
             </ThemedText>
+            {manual ? (
+              <ThemedText
+                type="small"
+                style={[styles.manual, { color: theme.textSecondary }]}
+              >
+                a mano
+              </ThemedText>
+            ) : null}
           </View>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
             {formatDate(date)}
@@ -148,8 +165,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   userInfo: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    marginRight: Spacing.sm,
   },
   avatar: {
     width: 32,
@@ -160,7 +179,11 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   nickname: {
+    flexShrink: 1,
     fontWeight: "600",
+  },
+  manual: {
+    marginLeft: Spacing.sm,
   },
   statsRow: {
     flexDirection: "row",

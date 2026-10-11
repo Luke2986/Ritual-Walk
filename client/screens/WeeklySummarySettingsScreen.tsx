@@ -43,7 +43,7 @@ export default function WeeklySummarySettingsScreen() {
 
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedTime, setSelectedTime] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(7);
+  const [selectedDay, setSelectedDay] = useState(5);
 
   const { data: prefs } = useQuery<NotificationPrefs>({
     queryKey: ["/api/notification-prefs"],
@@ -51,11 +51,11 @@ export default function WeeklySummarySettingsScreen() {
 
   useEffect(() => {
     if (prefs) {
-      const [hours, minutes] = (prefs.weeklySummaryTime || "10:00").split(":");
+      const [hours, minutes] = (prefs.weeklySummaryTime || "19:00").split(":");
       const date = new Date();
       date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       setSelectedTime(date);
-      setSelectedDay(prefs.weeklySummaryDay || 7);
+      setSelectedDay(prefs.weeklySummaryDay || 5);
     }
   }, [prefs]);
 

@@ -52,6 +52,8 @@ type DashboardScreenProps = {
 interface WalkData {
   id: string;
   userId: string;
+  together?: boolean;
+  manual?: boolean;
   distanceKm: number;
   durationSeconds: number;
   startedAt: string;
@@ -68,25 +70,6 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const streak = couple ? getEffectiveStreak(couple) : 0;
 
   const streakGlow = useSharedValue(0.3);
-
-  React.useEffect(() => {
-    if (streak > 0) {
-      streakGlow.value = withRepeat(
-        withSequence(
-          withTiming(0.6, {
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(0.3, {
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-          }),
-        ),
-        -1,
-        false,
-      );
-    }
-  }, [streak, streakGlow]);
 
   const streakGlowStyle = useAnimatedStyle(() => ({
     shadowOpacity: streakGlow.value,
@@ -111,6 +94,31 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       statsData.partnerId,
     );
   }, [statsData]);
+
+  // The ritual's main number: days this week on which both walked.
+  const daysTogether = Object.values(activityData).filter(
+    (day) => day.me && day.partner,
+  ).length;
+  const mainNumber = partner ? daysTogether : streak;
+
+  React.useEffect(() => {
+    if (mainNumber > 0) {
+      streakGlow.value = withRepeat(
+        withSequence(
+          withTiming(0.6, {
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(0.3, {
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ),
+        -1,
+        false,
+      );
+    }
+  }, [mainNumber, streakGlow]);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -146,7 +154,13 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       distance={item.distanceKm}
       duration={item.durationSeconds}
       date={item.startedAt}
-      userNickname={item.userNickname}
+      userNickname={
+        item.together
+          ? `${item.userNickname} e ${item.userId === user?.id ? (partner?.nickname ?? "") : (user?.nickname ?? "")}`
+          : item.userNickname
+      }
+      together={item.together}
+      manual={item.manual}
       personColor={
         item.userId === user?.id ? PersonColors.me : PersonColors.partner
       }
@@ -167,32 +181,81 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
       {couple ? (
         <>
-          <Animated.View style={[styles.streakCardWrapper, streakGlowStyle]}>
-            <NeonCard
-              title="Streak Attuale"
-              glowColor="#FFB300"
-              style={styles.streakCard}
-            >
-              <View style={styles.streakContent}>
-                <View style={styles.streakIconWrapper}>
-                  <Feather name="zap" size={36} color="#FFB300" />
-                </View>
-                <View style={styles.streakText}>
-                  <ThemedText style={styles.streakNumber}>{streak}</ThemedText>
-                  <ThemedText
-                    type="body"
-                    style={{ color: theme.textSecondary }}
+          <Animated.View
+            style={[
+              styles.streakCardWrapper,
+              streakGlowStyle,
+              partner ? { shadowColor: PersonColors.partner } : null,
+            ]}
+          >
+            {partner ? (
+              <NeonCard
+                title="Giorni insieme"
+                glowColor={PersonColors.partner}
+                style={styles.streakCard}
+              >
+                <View style={styles.streakContent}>
+                  <LinearGradient
+                    colors={[PersonColors.me, PersonColors.partner]}
+                    locations={[0.5, 0.5]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.streakIconWrapper}
                   >
-                    {streak === 1 ? "giorno" : "giorni"}
-                  </ThemedText>
-                </View>
-                {streak > 0 ? (
-                  <View style={styles.streakBadge}>
-                    <Feather name="award" size={16} color="#FFFFFF" />
+                    <Feather name="users" size={30} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.streakText}>
+                    <ThemedText style={styles.streakNumber}>
+                      {daysTogether}
+                    </ThemedText>
+                    <ThemedText
+                      type="body"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      {daysTogether === 1 ? "giorno" : "giorni"} questa
+                      settimana
+                    </ThemedText>
                   </View>
-                ) : null}
-              </View>
-            </NeonCard>
+                  <View style={styles.streakSide}>
+                    <Feather name="zap" size={18} color={theme.textSecondary} />
+                    <ThemedText
+                      type="small"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Streak {streak}
+                    </ThemedText>
+                  </View>
+                </View>
+              </NeonCard>
+            ) : (
+              <NeonCard
+                title="Streak Attuale"
+                glowColor="#FFB300"
+                style={styles.streakCard}
+              >
+                <View style={styles.streakContent}>
+                  <View style={styles.streakIconWrapper}>
+                    <Feather name="zap" size={36} color="#FFB300" />
+                  </View>
+                  <View style={styles.streakText}>
+                    <ThemedText style={styles.streakNumber}>
+                      {streak}
+                    </ThemedText>
+                    <ThemedText
+                      type="body"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      {streak === 1 ? "giorno" : "giorni"}
+                    </ThemedText>
+                  </View>
+                  {streak > 0 ? (
+                    <View style={styles.streakBadge}>
+                      <Feather name="award" size={16} color="#FFFFFF" />
+                    </View>
+                  ) : null}
+                </View>
+              </NeonCard>
+            )}
           </Animated.View>
 
           <View style={styles.statsRow}>
@@ -381,6 +444,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 48,
     color: "#1A1458",
+  },
+  streakSide: {
+    alignItems: "center",
+    gap: 2,
   },
   streakBadge: {
     backgroundColor: "#FFB300",

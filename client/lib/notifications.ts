@@ -20,6 +20,21 @@ export interface NotificationPrefs {
 }
 
 const CHANNEL_ID = "reminders";
+
+// Before Sunday it still asks for action; on Sunday it looks back at the week.
+function weeklySummaryText(day: number) {
+  if (day >= 7) {
+    return {
+      title: "Com'è andata la settimana?",
+      body: "Apri Step Ritual per vedere i vostri giorni insieme.",
+    };
+  }
+  const left = 7 - day;
+  return {
+    title: "Il vostro riepilogo",
+    body: `${left === 1 ? "Manca ancora 1 giorno" : `Mancano ancora ${left} giorni`} alla fine della settimana: ogni giorno in cui camminate entrambi è un giorno insieme.`,
+  };
+}
 const DEFAULT_REMINDER = "È l'ora del vostro rituale: una camminata insieme?";
 
 if (Platform.OS !== "web") {
@@ -93,10 +108,7 @@ export async function syncScheduledNotifications(
   if (prefs.weeklySummaryEnabled && !quiet(prefs.weeklySummaryTime)) {
     requests.push(
       Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Il vostro riepilogo settimanale",
-          body: "Apri Step Ritual per vedere quanti km avete fatto questa settimana.",
-        },
+        content: weeklySummaryText(prefs.weeklySummaryDay),
         trigger: weeklyTrigger(prefs.weeklySummaryDay, prefs.weeklySummaryTime),
       }),
     );
