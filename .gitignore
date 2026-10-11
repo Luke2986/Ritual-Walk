@@ -15,3 +15,5 @@ static-build/
 
 ios/
 android/
+
+.claude/settings.local.json
