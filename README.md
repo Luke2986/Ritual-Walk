@@ -2,6 +2,17 @@
 
 **[Italiano](#italiano) · [English](#english)**
 
+<p align="center">
+  <img src="immagini%20esempio/anteprima-1.png" width="49%" alt="Home e nuova camminata / Home and new walk">
+  <img src="immagini%20esempio/anteprima-2.png" width="49%" alt="Premi / Badges">
+</p>
+<p align="center">
+  <img src="immagini%20esempio/anteprima-3.png" width="49%" alt="Storico e dettaglio camminata / History and walk detail">
+  <img src="immagini%20esempio/anteprima-4.png" width="49%" alt="Aggiungere una camminata e invitare / Add a walk and invite">
+</p>
+
+<p align="center"><sub>Dati di esempio (Alex e Sam). L'interfaccia è in italiano. · Sample data (Alex and Sam). The interface is in Italian.</sub></p>
+
 ---
 
 ## Italiano
