@@ -129,7 +129,7 @@ export default function TrackWalkScreen() {
           <View
             style={[
               styles.idleContainer,
-              { paddingBottom: tabBarHeight + Spacing.xl + 40 },
+              { paddingBottom: tabBarHeight + Spacing.xl },
             ]}
           >
             <View style={styles.idleContent}>
@@ -185,7 +185,7 @@ export default function TrackWalkScreen() {
             entering={FadeIn.duration(300)}
             style={[
               styles.runningContainer,
-              { paddingBottom: tabBarHeight + Spacing.lg + 40 },
+              { paddingBottom: tabBarHeight + Spacing.lg },
             ]}
           >
             <View style={styles.statusBar}>

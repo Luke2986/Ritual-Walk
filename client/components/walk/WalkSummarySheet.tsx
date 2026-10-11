@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { NeonButton } from "@/components/NeonButton";
 import { useTheme } from "@/hooks/useTheme";
+import { MAX_APP_WIDTH } from "@/hooks/useAppWidth";
 import { Colors, Spacing, BorderRadius, Shadows } from "@/constants/theme";
 
 interface WalkSummarySheetProps {
@@ -217,12 +218,15 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: "flex-end",
+    alignItems: "center",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   sheet: {
+    width: "100%",
+    maxWidth: MAX_APP_WIDTH,
     borderTopLeftRadius: BorderRadius["2xl"],
     borderTopRightRadius: BorderRadius["2xl"],
     paddingTop: Spacing.md,

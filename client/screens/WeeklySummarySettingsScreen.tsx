@@ -7,7 +7,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -37,7 +37,7 @@ const DAYS = [
 
 export default function WeeklySummarySettingsScreen() {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
 
@@ -110,7 +110,7 @@ export default function WeeklySummarySettingsScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing["2xl"],
+            paddingBottom: tabBarHeight + Spacing["2xl"],
           },
         ]}
         showsVerticalScrollIndicator={false}

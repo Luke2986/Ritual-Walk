@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import { View, StyleSheet, Pressable, Dimensions } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedProps,
@@ -15,7 +15,6 @@ import { Colors, Spacing } from "@/constants/theme";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const SCREEN_HEIGHT = Dimensions.get("window").height;
 const UNLOCK_DURATION = 2000;
 const CIRCLE_SIZE = 120;
 const STROKE_WIDTH = 6;

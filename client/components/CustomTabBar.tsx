@@ -1,6 +1,9 @@
-import React from "react";
-import { View, Pressable, StyleSheet, useWindowDimensions } from "react-native";
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import React, { useContext, useEffect } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
+import {
+  BottomTabBarHeightCallbackContext,
+  BottomTabBarProps,
+} from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Feather } from "@expo/vector-icons";
@@ -9,11 +12,14 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import FootprintsIcon from "@/components/FootprintsIcon";
+import { useAppWidth } from "@/hooks/useAppWidth";
 
 const TAB_BAR_HEIGHT = 60;
 const FAB_SIZE = 56;
 const NOTCH_DEPTH = 30;
 const NOTCH_WIDTH = 70;
+// The painted background rises above the tab row, so screens must pad by this, not the row height.
+const BACKGROUND_HEIGHT = TAB_BAR_HEIGHT + 50;
 
 function createNotchPath(width: number): string {
   const mid = width / 2;
@@ -26,8 +32,8 @@ function createNotchPath(width: number): string {
     Q ${mid} ${NOTCH_DEPTH + 35} ${mid + curveWidth - 10} ${NOTCH_DEPTH + 20}
     Q ${mid + curveWidth} ${NOTCH_DEPTH} ${mid + NOTCH_WIDTH} ${NOTCH_DEPTH}
     L ${width} ${NOTCH_DEPTH}
-    L ${width} ${NOTCH_DEPTH + TAB_BAR_HEIGHT + 50}
-    L 0 ${NOTCH_DEPTH + TAB_BAR_HEIGHT + 50}
+    L ${width} ${NOTCH_DEPTH + BACKGROUND_HEIGHT}
+    L 0 ${NOTCH_DEPTH + BACKGROUND_HEIGHT}
     Z
   `;
 }
@@ -44,8 +50,17 @@ const TAB_CONFIG: {
 
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const screenWidth = useAppWidth();
   const bottomPadding = Math.max(insets.bottom, 10);
+  const reportHeight = useContext(BottomTabBarHeightCallbackContext);
+  const visibleHeight = Math.max(
+    BACKGROUND_HEIGHT,
+    TAB_BAR_HEIGHT + bottomPadding,
+  );
+
+  useEffect(() => {
+    reportHeight?.(visibleHeight);
+  }, [reportHeight, visibleHeight]);
 
   const handlePress = (
     routeName: string,
@@ -77,7 +92,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       {/* SVG Background */}
       <Svg
         width={screenWidth}
-        height={TAB_BAR_HEIGHT + NOTCH_DEPTH + 50}
+        height={NOTCH_DEPTH + BACKGROUND_HEIGHT}
         style={styles.svgBackground}
       >
         <Path d={createNotchPath(screenWidth)} fill="#FDF5E6" />

@@ -298,7 +298,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + Spacing["2xl"] + 40,
+            paddingBottom: tabBarHeight + Spacing["2xl"],
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}

@@ -1,9 +1,16 @@
 import React from "react";
-import { StyleSheet, View, Platform, Dimensions } from "react-native";
+import { StyleSheet, View, Platform } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { ThemedText } from "@/components/ThemedText";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { formatDistance } from "@/lib/formatDistance";
+import { useAppWidth } from "@/hooks/useAppWidth";
+import {
+  CHART_EDGE_SPACING,
+  fitBarWidth,
+  fitLabels,
+  formatKmAxisLabel,
+} from "@/lib/chartLayout";
 
 const electricCyan = "#00E5FF";
 const lavenderPop = "#B88BFF";
@@ -19,31 +26,42 @@ interface WeeklyDualBarChartProps {
 }
 
 const dayLabels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+const dayInitials = ["L", "M", "M", "G", "V", "S", "D"];
+
+const INNER_GAP = 2;
+const GROUP_GAP = 12;
 
 export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
   const totalIo = data.ioKm.reduce((sum, km) => sum + km, 0);
   const totalPartner = data.partnerKm.reduce((sum, km) => sum + km, 0);
   const totalTogether = totalIo + totalPartner;
 
-  const chartData = dayLabels.flatMap((label, index) => [
+  const chartWidth = useAppWidth() - Spacing.lg * 4;
+  const plotWidth = chartWidth - 50;
+  const barWidth = fitBarWidth(
+    plotWidth,
+    dayLabels.length,
+    INNER_GAP,
+    GROUP_GAP,
+    18,
+  );
+
+  const labels = fitLabels(barWidth, INNER_GAP, dayLabels, dayInitials);
+
+  const chartData = labels.flatMap((label, index) => [
     {
       value: data.ioKm[index] || 0,
       frontColor: electricCyan,
-      topLabelComponent: () => null,
-      spacing: 2,
+      spacing: INNER_GAP,
+      label,
+      labelWidth: barWidth * 2 + INNER_GAP,
     },
     {
       value: data.partnerKm[index] || 0,
-      label: label,
       frontColor: lavenderPop,
-      topLabelComponent: () => null,
-      spacing: 20,
+      spacing: GROUP_GAP,
     },
   ]);
-
-  const screenWidth = Dimensions.get("window").width;
-  const chartWidth = screenWidth - Spacing.lg * 4;
-  const barWidth = Math.min(18, (chartWidth - 140) / 14);
 
   const maxValue = Math.max(...data.ioKm, ...data.partnerKm, 1);
   const yAxisMax = Math.ceil(maxValue * 1.2);
@@ -64,9 +82,14 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
 
       <View style={styles.chartContainer}>
         <BarChart
+          // Bars only animate on mount, so remount when the numbers change.
+          key={[...data.ioKm, ...data.partnerKm].join()}
           data={chartData}
           barWidth={barWidth}
-          spacing={2}
+          spacing={INNER_GAP}
+          initialSpacing={CHART_EDGE_SPACING}
+          endSpacing={CHART_EDGE_SPACING}
+          disableScroll
           roundedTop
           roundedBottom={false}
           hideRules
@@ -76,15 +99,11 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
           xAxisLabelTextStyle={styles.xAxisText}
           noOfSections={4}
           maxValue={yAxisMax}
-          formatYLabel={(val) => {
-            const num = parseFloat(val);
-            if (num < 1) {
-              return `${Math.round(num * 1000)}m`;
-            }
-            return `${num.toFixed(1)}`;
-          }}
+          showFractionalValues
+          roundToDigits={2}
+          formatYLabel={formatKmAxisLabel}
           yAxisLabelWidth={40}
-          width={chartWidth - 50}
+          width={plotWidth}
           height={180}
           isAnimated
           animationDuration={600}

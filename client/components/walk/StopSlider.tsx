@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -13,11 +13,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useAppWidth } from "@/hooks/useAppWidth";
 
-const SLIDER_WIDTH = Dimensions.get("window").width - Spacing.lg * 2;
 const HANDLE_SIZE = 56;
 const TRACK_PADDING = 4;
-const SLIDE_THRESHOLD = SLIDER_WIDTH - HANDLE_SIZE - TRACK_PADDING * 2;
 
 interface StopSliderProps {
   onStop: () => void;
@@ -25,6 +24,8 @@ interface StopSliderProps {
 }
 
 export function StopSlider({ onStop, disabled = false }: StopSliderProps) {
+  const sliderWidth = useAppWidth() - Spacing.lg * 2;
+  const SLIDE_THRESHOLD = sliderWidth - HANDLE_SIZE - TRACK_PADDING * 2;
   const translateX = useSharedValue(0);
   const isCompleted = useSharedValue(false);
 
@@ -76,7 +77,7 @@ export function StopSlider({ onStop, disabled = false }: StopSliderProps) {
 
   return (
     <View style={[styles.container, disabled && styles.disabled]}>
-      <View style={styles.track}>
+      <View style={[styles.track, { width: sliderWidth }]}>
         <Animated.View style={[styles.progressFill, progressStyle]} />
         <Animated.View style={[styles.textContainer, textOpacity]}>
           <ThemedText style={styles.text}>Scorri per fermare</ThemedText>
@@ -100,7 +101,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   track: {
-    width: SLIDER_WIDTH,
     height: HANDLE_SIZE + TRACK_PADDING * 2,
     backgroundColor: "rgba(255, 71, 87, 0.15)",
     borderRadius: BorderRadius.xl,
