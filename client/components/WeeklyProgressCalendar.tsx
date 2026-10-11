@@ -38,7 +38,10 @@ function getWeekDates(): { date: string; day: number; isToday: boolean }[] {
   return dates;
 }
 
-export function WeeklyProgressCalendar({ activityData, onPress }: WeeklyProgressCalendarProps) {
+export function WeeklyProgressCalendar({
+  activityData,
+  onPress,
+}: WeeklyProgressCalendarProps) {
   const weekDates = getWeekDates();
 
   return (
@@ -75,20 +78,24 @@ export function WeeklyProgressCalendar({ activityData, onPress }: WeeklyProgress
                 ]}
               >
                 <ThemedText
-                  style={[
-                    styles.dayNumber,
-                    item.isToday && styles.todayNumber,
-                  ]}
+                  style={[styles.dayNumber, item.isToday && styles.todayNumber]}
                 >
                   {item.day}
                 </ThemedText>
               </View>
               <View style={styles.indicatorRow}>
                 {hasMe ? (
-                  <View style={[styles.indicator, { backgroundColor: electricCyan }]} />
+                  <View
+                    style={[
+                      styles.indicator,
+                      { backgroundColor: electricCyan },
+                    ]}
+                  />
                 ) : null}
                 {hasPartner ? (
-                  <View style={[styles.indicator, { backgroundColor: lavenderPop }]} />
+                  <View
+                    style={[styles.indicator, { backgroundColor: lavenderPop }]}
+                  />
                 ) : null}
               </View>
             </View>
@@ -99,18 +106,28 @@ export function WeeklyProgressCalendar({ activityData, onPress }: WeeklyProgress
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
           <View style={[styles.legendBar, { backgroundColor: electricCyan }]} />
-          <ThemedText type="small" style={styles.legendText}>Io</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Io
+          </ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBar, { backgroundColor: lavenderPop }]} />
-          <ThemedText type="small" style={styles.legendText}>Partner</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Partner
+          </ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={styles.legendBoth}>
-            <View style={[styles.legendBarSmall, { backgroundColor: electricCyan }]} />
-            <View style={[styles.legendBarSmall, { backgroundColor: lavenderPop }]} />
+            <View
+              style={[styles.legendBarSmall, { backgroundColor: electricCyan }]}
+            />
+            <View
+              style={[styles.legendBarSmall, { backgroundColor: lavenderPop }]}
+            />
           </View>
-          <ThemedText type="small" style={styles.legendText}>Insieme</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Insieme
+          </ThemedText>
         </View>
       </View>
     </Pressable>

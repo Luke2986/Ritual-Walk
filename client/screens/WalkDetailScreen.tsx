@@ -6,7 +6,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { RouteProp } from "@react-navigation/native";
 
-import { MapViewCompat, PolylineCompat, MarkerCompat } from "@/components/MapViewCompat";
+import {
+  MapViewCompat,
+  PolylineCompat,
+  MarkerCompat,
+} from "@/components/MapViewCompat";
 import { ThemedText } from "@/components/ThemedText";
 import { StatCard } from "@/components/StatCard";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -175,7 +179,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
               label="Passo"
               value={
                 walk.distanceKm > 0
-                  ? `${((walk.durationSeconds / 60) / walk.distanceKm).toFixed(1)} min/km`
+                  ? `${(walk.durationSeconds / 60 / walk.distanceKm).toFixed(1)} min/km`
                   : "0 min/km"
               }
               icon="activity"

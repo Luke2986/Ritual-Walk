@@ -6,7 +6,10 @@ interface FootprintsIconProps {
   color?: string;
 }
 
-export default function FootprintsIcon({ size = 24, color = "#FFFFFF" }: FootprintsIconProps) {
+export default function FootprintsIcon({
+  size = 24,
+  color = "#FFFFFF",
+}: FootprintsIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       {/* Left foot */}
@@ -26,7 +29,7 @@ export default function FootprintsIcon({ size = 24, color = "#FFFFFF" }: Footpri
         d="M6 6.5C6 5.67 6.67 5 7.5 5C8.33 5 9 5.67 9 6.5C9 7.33 8.33 8 7.5 8C6.67 8 6 7.33 6 6.5Z"
         fill={color}
       />
-      
+
       {/* Right foot */}
       <Path
         d="M15 19.5C15 18.12 16.12 17 17.5 17C18.88 17 20 18.12 20 19.5C20 20.88 18.88 22 17.5 22C16.12 22 15 20.88 15 19.5Z"

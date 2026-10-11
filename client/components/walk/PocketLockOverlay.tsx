@@ -42,7 +42,7 @@ export function PocketLockOverlay({
   const handlePressIn = useCallback(() => {
     setIsPressing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
     progress.value = withTiming(1, {
       duration: UNLOCK_DURATION,
       easing: Easing.linear,
@@ -55,7 +55,7 @@ export function PocketLockOverlay({
 
   const handlePressOut = useCallback(() => {
     setIsPressing(false);
-    
+
     if (pressTimeoutRef.current) {
       clearTimeout(pressTimeoutRef.current);
       pressTimeoutRef.current = null;
@@ -80,7 +80,11 @@ export function PocketLockOverlay({
           accessibilityLabel="Tieni premuto per 2 secondi per sbloccare"
           accessibilityHint="Tieni premuto il lucchetto per sbloccare lo schermo"
         >
-          <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.progressCircle}>
+          <Svg
+            width={CIRCLE_SIZE}
+            height={CIRCLE_SIZE}
+            style={styles.progressCircle}
+          >
             <Circle
               cx={CIRCLE_SIZE / 2}
               cy={CIRCLE_SIZE / 2}
@@ -104,10 +108,10 @@ export function PocketLockOverlay({
             />
           </Svg>
           <View style={styles.iconContainer}>
-            <Feather 
-              name={isPressing ? "unlock" : "lock"} 
-              size={40} 
-              color="#FFFFFF" 
+            <Feather
+              name={isPressing ? "unlock" : "lock"}
+              size={40}
+              color="#FFFFFF"
             />
           </View>
         </Pressable>
@@ -117,15 +121,21 @@ export function PocketLockOverlay({
         </ThemedText>
 
         <View style={styles.miniStats}>
-          <ThemedText style={styles.sessionLabel}>Sessione in corso...</ThemedText>
+          <ThemedText style={styles.sessionLabel}>
+            Sessione in corso...
+          </ThemedText>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <ThemedText style={styles.statValue}>{steps.toLocaleString("it-IT")}</ThemedText>
+              <ThemedText style={styles.statValue}>
+                {steps.toLocaleString("it-IT")}
+              </ThemedText>
               <ThemedText style={styles.statLabel}>passi</ThemedText>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <ThemedText style={styles.statValue}>{durationFormatted}</ThemedText>
+              <ThemedText style={styles.statValue}>
+                {durationFormatted}
+              </ThemedText>
               <ThemedText style={styles.statLabel}>tempo</ThemedText>
             </View>
           </View>

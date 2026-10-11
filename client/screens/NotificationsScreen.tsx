@@ -80,14 +80,30 @@ function CategoryRow({
       onPress={onPress}
       disabled={disabled || !onPress}
     >
-      <View style={[styles.categoryIcon, disabled && styles.categoryIconDisabled]}>
-        <Feather name={icon as any} size={20} color={disabled ? "#999" : "#B88BFF"} />
+      <View
+        style={[styles.categoryIcon, disabled && styles.categoryIconDisabled]}
+      >
+        <Feather
+          name={icon as any}
+          size={20}
+          color={disabled ? "#999" : "#B88BFF"}
+        />
       </View>
       <View style={styles.categoryContent}>
-        <ThemedText style={[styles.categoryTitle, disabled && styles.categoryTitleDisabled]}>
+        <ThemedText
+          style={[
+            styles.categoryTitle,
+            disabled && styles.categoryTitleDisabled,
+          ]}
+        >
           {title}
         </ThemedText>
-        <ThemedText style={[styles.categoryDescription, disabled && styles.categoryDescriptionDisabled]}>
+        <ThemedText
+          style={[
+            styles.categoryDescription,
+            disabled && styles.categoryDescriptionDisabled,
+          ]}
+        >
           {description}
         </ThemedText>
       </View>
@@ -99,8 +115,16 @@ function CategoryRow({
         thumbColor="#FFFFFF"
       />
       {onPress ? (
-        <Pressable onPress={onPress} disabled={disabled} style={styles.chevronButton}>
-          <Feather name="chevron-right" size={20} color={disabled ? "#CCC" : "#B88BFF"} />
+        <Pressable
+          onPress={onPress}
+          disabled={disabled}
+          style={styles.chevronButton}
+        >
+          <Feather
+            name="chevron-right"
+            size={20}
+            color={disabled ? "#CCC" : "#B88BFF"}
+          />
         </Pressable>
       ) : null}
     </Pressable>
@@ -114,16 +138,26 @@ export default function NotificationsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
 
-  const [osPermission, setOsPermission] = useState<"granted" | "denied" | "undetermined">("undetermined");
+  const [osPermission, setOsPermission] = useState<
+    "granted" | "denied" | "undetermined"
+  >("undetermined");
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: prefs, isLoading, refetch } = useQuery<NotificationPrefs>({
+  const {
+    data: prefs,
+    isLoading,
+    refetch,
+  } = useQuery<NotificationPrefs>({
     queryKey: ["/api/notification-prefs"],
   });
 
   const updatePrefsMutation = useMutation({
     mutationFn: async (updates: Partial<NotificationPrefs>) => {
-      const response = await apiRequest("PUT", "/api/notification-prefs", updates);
+      const response = await apiRequest(
+        "PUT",
+        "/api/notification-prefs",
+        updates,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -140,7 +174,7 @@ export default function NotificationsScreen() {
       setOsPermission("granted");
       return;
     }
-    
+
     const { status } = await Notifications.getPermissionsAsync();
     setOsPermission(status);
   };
@@ -168,7 +202,7 @@ export default function NotificationsScreen() {
 
   const handleMasterToggle = async (value: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     if (value) {
       if (osPermission !== "granted") {
         const granted = await requestOsPermission();
@@ -179,17 +213,20 @@ export default function NotificationsScreen() {
             [
               { text: "Annulla", style: "cancel" },
               { text: "Apri Impostazioni", onPress: openSettings },
-            ]
+            ],
           );
           return;
         }
       }
     }
-    
+
     updatePrefsMutation.mutate({ notificationsEnabled: value });
   };
 
-  const handleCategoryToggle = (field: keyof NotificationPrefs, value: boolean) => {
+  const handleCategoryToggle = (
+    field: keyof NotificationPrefs,
+    value: boolean,
+  ) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePrefsMutation.mutate({ [field]: value });
   };
@@ -222,7 +259,16 @@ export default function NotificationsScreen() {
   };
 
   const getWeekdayName = (day: number) => {
-    const names = ["", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+    const names = [
+      "",
+      "Lunedì",
+      "Martedì",
+      "Mercoledì",
+      "Giovedì",
+      "Venerdì",
+      "Sabato",
+      "Domenica",
+    ];
     return names[day] || "";
   };
 
@@ -257,11 +303,14 @@ export default function NotificationsScreen() {
                 Notifiche disabilitate
               </ThemedText>
               <ThemedText style={styles.warningText}>
-                Le notifiche sono disabilitate nelle impostazioni del dispositivo.
+                Le notifiche sono disabilitate nelle impostazioni del
+                dispositivo.
               </ThemedText>
             </View>
             <Pressable style={styles.warningButton} onPress={openSettings}>
-              <ThemedText style={styles.warningButtonText}>Apri Impostazioni</ThemedText>
+              <ThemedText style={styles.warningButtonText}>
+                Apri Impostazioni
+              </ThemedText>
             </Pressable>
           </View>
         ) : null}
@@ -273,10 +322,14 @@ export default function NotificationsScreen() {
               <Feather name="bell" size={24} color="#B88BFF" />
             </View>
             <View style={styles.masterContent}>
-              <ThemedText style={styles.masterTitle}>Abilita notifiche</ThemedText>
+              <ThemedText style={styles.masterTitle}>
+                Abilita notifiche
+              </ThemedText>
               <ThemedText style={styles.masterDescription}>
-                {osPermission === "granted" 
-                  ? (masterEnabled ? "Notifiche attive" : "Notifiche disattivate")
+                {osPermission === "granted"
+                  ? masterEnabled
+                    ? "Notifiche attive"
+                    : "Notifiche disattivate"
                   : "Permesso non concesso"}
               </ThemedText>
             </View>

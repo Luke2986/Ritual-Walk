@@ -1,5 +1,13 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { StyleSheet, View, FlatList, RefreshControl, Pressable, Alert, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  RefreshControl,
+  Pressable,
+  Alert,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -60,11 +68,17 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     if (couple && couple.currentStreak > 0) {
       streakGlow.value = withRepeat(
         withSequence(
-          withTiming(0.6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+          withTiming(0.6, {
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(0.3, {
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+          }),
         ),
         -1,
-        false
+        false,
       );
     }
   }, [couple?.currentStreak]);
@@ -73,7 +87,11 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     shadowOpacity: streakGlow.value,
   }));
 
-  const { data: recentWalks, isLoading, refetch } = useQuery<WalkData[]>({
+  const {
+    data: recentWalks,
+    isLoading,
+    refetch,
+  } = useQuery<WalkData[]>({
     queryKey: ["/api/walks/recent"],
     enabled: !!couple,
   });
@@ -81,11 +99,21 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const weekRange = useMemo(() => getDateRange("week"), []);
 
   const { data: statsData, refetch: refetchStats } = useQuery<StatsResponse>({
-    queryKey: ["/api/walks/stats", weekRange.start.toISOString(), weekRange.end.toISOString()],
+    queryKey: [
+      "/api/walks/stats",
+      weekRange.start.toISOString(),
+      weekRange.end.toISOString(),
+    ],
     queryFn: async () => {
       const url = new URL("/api/walks/stats", window.location.origin);
-      url.searchParams.set("startDate", weekRange.start.toISOString().split("T")[0]);
-      url.searchParams.set("endDate", weekRange.end.toISOString().split("T")[0]);
+      url.searchParams.set(
+        "startDate",
+        weekRange.start.toISOString().split("T")[0],
+      );
+      url.searchParams.set(
+        "endDate",
+        weekRange.end.toISOString().split("T")[0],
+      );
       const response = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -98,7 +126,11 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const activityData = useMemo(() => {
     if (!statsData?.walks) return {};
-    return buildActivityByDate(statsData.walks, statsData.userId, statsData.partnerId);
+    return buildActivityByDate(
+      statsData.walks,
+      statsData.userId,
+      statsData.partnerId,
+    );
   }, [statsData]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -140,7 +172,9 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         <ThemedText type="body" style={styles.welcomeText}>
           Benvenuto,
         </ThemedText>
-        <ThemedText type="h2" style={styles.userName}>{user?.nickname}</ThemedText>
+        <ThemedText type="h2" style={styles.userName}>
+          {user?.nickname}
+        </ThemedText>
       </View>
 
       {couple ? (
@@ -159,7 +193,10 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                   <ThemedText style={styles.streakNumber}>
                     {couple.currentStreak}
                   </ThemedText>
-                  <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="body"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {couple.currentStreak === 1 ? "giorno" : "giorni"}
                   </ThemedText>
                 </View>
@@ -188,9 +225,15 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                 color="#FF1493"
               />
             ) : (
-              <Pressable style={styles.inviteCard} onPress={handleInvitePartner}>
+              <Pressable
+                style={styles.inviteCard}
+                onPress={handleInvitePartner}
+              >
                 <LinearGradient
-                  colors={["rgba(255, 20, 147, 0.15)", "rgba(255, 20, 147, 0.05)"]}
+                  colors={[
+                    "rgba(255, 20, 147, 0.15)",
+                    "rgba(255, 20, 147, 0.05)",
+                  ]}
                   style={styles.inviteGradient}
                 >
                   <View style={styles.inviteIconContainer}>
@@ -201,7 +244,9 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
                   </ThemedText>
                   <ThemedText style={styles.inviteText}>In attesa</ThemedText>
                   <View style={styles.inviteButton}>
-                    <ThemedText style={styles.inviteButtonText}>Invita</ThemedText>
+                    <ThemedText style={styles.inviteButtonText}>
+                      Invita
+                    </ThemedText>
                   </View>
                 </LinearGradient>
               </Pressable>
@@ -232,12 +277,17 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
             style={styles.connectCard}
             glowColor="#FF1493"
           >
-            <ThemedText type="body" style={{ color: theme.textSecondary, marginTop: Spacing.sm }}>
+            <ThemedText
+              type="body"
+              style={{ color: theme.textSecondary, marginTop: Spacing.sm }}
+            >
               Crea o inserisci un Ritual Code per collegare il tuo partner
             </ThemedText>
             <View style={styles.connectButton}>
               <Feather name="plus" size={18} color="#FFFFFF" />
-              <ThemedText style={styles.connectButtonText}>Collega Ora</ThemedText>
+              <ThemedText style={styles.connectButtonText}>
+                Collega Ora
+              </ThemedText>
             </View>
           </NeonCard>
         </Pressable>
@@ -259,7 +309,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       style={styles.gradient}
     >
       <FlatList
-        data={couple ? (recentWalks || []) : []}
+        data={couple ? recentWalks || [] : []}
         renderItem={renderWalk}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}

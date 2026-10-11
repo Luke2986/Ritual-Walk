@@ -113,7 +113,8 @@ export function WalkCard({
           <View style={styles.stat}>
             <Feather name="trending-up" size={18} color={Colors.dark.success} />
             <ThemedText style={styles.statValue}>
-              {duration > 0 ? ((distance / duration) * 3600).toFixed(1) : 0} km/h
+              {duration > 0 ? ((distance / duration) * 3600).toFixed(1) : 0}{" "}
+              km/h
             </ThemedText>
           </View>
         </View>

@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, TextInput, View, TextInputProps, Pressable } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  TextInputProps,
+  Pressable,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -50,7 +56,10 @@ export function NeonInput({
   return (
     <View style={styles.container}>
       {label ? (
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+        <ThemedText
+          type="small"
+          style={[styles.label, { color: theme.textSecondary }]}
+        >
           {label}
         </ThemedText>
       ) : null}
@@ -96,7 +105,10 @@ export function NeonInput({
         ) : null}
       </Animated.View>
       {error ? (
-        <ThemedText type="small" style={[styles.error, { color: Colors.dark.error }]}>
+        <ThemedText
+          type="small"
+          style={[styles.error, { color: Colors.dark.error }]}
+        >
           {error}
         </ThemedText>
       ) : null}

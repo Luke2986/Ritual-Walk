@@ -18,7 +18,7 @@ const NOTCH_WIDTH = 70;
 function createNotchPath(width: number): string {
   const mid = width / 2;
   const curveWidth = 35;
-  
+
   return `
     M 0 ${NOTCH_DEPTH}
     L ${mid - NOTCH_WIDTH} ${NOTCH_DEPTH}
@@ -32,7 +32,9 @@ function createNotchPath(width: number): string {
   `;
 }
 
-const TAB_CONFIG: { [key: string]: { icon: keyof typeof Feather.glyphMap; label: string } } = {
+const TAB_CONFIG: {
+  [key: string]: { icon: keyof typeof Feather.glyphMap; label: string };
+} = {
   DashboardTab: { icon: "home", label: "Home" },
   PremiTab: { icon: "award", label: "Premi" },
   TrackTab: { icon: "navigation", label: "" },
@@ -45,7 +47,11 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { width: screenWidth } = useWindowDimensions();
   const bottomPadding = Math.max(insets.bottom, 10);
 
-  const handlePress = (routeName: string, routeKey: string, isFocused: boolean) => {
+  const handlePress = (
+    routeName: string,
+    routeKey: string,
+    isFocused: boolean,
+  ) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const event = navigation.emit({
       type: "tabPress",
@@ -58,8 +64,12 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     }
   };
 
-  const leftTabs = state.routes.filter((r) => r.name === "DashboardTab" || r.name === "PremiTab");
-  const rightTabs = state.routes.filter((r) => r.name === "HistoryTab" || r.name === "AccountTab");
+  const leftTabs = state.routes.filter(
+    (r) => r.name === "DashboardTab" || r.name === "PremiTab",
+  );
+  const rightTabs = state.routes.filter(
+    (r) => r.name === "HistoryTab" || r.name === "AccountTab",
+  );
   const centerTab = state.routes.find((r) => r.name === "TrackTab");
 
   return (
@@ -92,7 +102,10 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                   color={isFocused ? "#B88BFF" : "#3B2F8A"}
                 />
                 <ThemedText
-                  style={[styles.tabLabel, { color: isFocused ? "#B88BFF" : "#3B2F8A" }]}
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? "#B88BFF" : "#3B2F8A" },
+                  ]}
                 >
                   {config.label}
                 </ThemedText>
@@ -121,7 +134,10 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                   color={isFocused ? "#B88BFF" : "#3B2F8A"}
                 />
                 <ThemedText
-                  style={[styles.tabLabel, { color: isFocused ? "#B88BFF" : "#3B2F8A" }]}
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? "#B88BFF" : "#3B2F8A" },
+                  ]}
                 >
                   {config.label}
                 </ThemedText>
@@ -141,10 +157,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             handlePress("TrackTab", centerTab.key, isFocused);
           }}
         >
-          <LinearGradient
-            colors={["#FF4D6D", "#E84574"]}
-            style={styles.fab}
-          >
+          <LinearGradient colors={["#FF4D6D", "#E84574"]} style={styles.fab}>
             <FootprintsIcon size={26} color="#FFFFFF" />
           </LinearGradient>
         </Pressable>

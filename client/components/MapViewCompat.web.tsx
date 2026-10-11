@@ -40,12 +40,24 @@ export function MapViewCompat({ style }: MapViewCompatProps) {
   const { theme } = useTheme();
 
   return (
-    <View style={[styles.webMapPlaceholder, { backgroundColor: theme.backgroundSecondary }, style]}>
+    <View
+      style={[
+        styles.webMapPlaceholder,
+        { backgroundColor: theme.backgroundSecondary },
+        style,
+      ]}
+    >
       <Feather name="map" size={48} color={theme.textSecondary} />
-      <ThemedText type="body" style={[styles.webMapText, { color: theme.textSecondary }]}>
+      <ThemedText
+        type="body"
+        style={[styles.webMapText, { color: theme.textSecondary }]}
+      >
         Mappa disponibile su Expo Go
       </ThemedText>
-      <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center" }}>
+      <ThemedText
+        type="small"
+        style={{ color: theme.textSecondary, textAlign: "center" }}
+      >
         Scansiona il QR code per testare su dispositivo mobile
       </ThemedText>
     </View>

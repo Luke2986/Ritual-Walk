@@ -45,7 +45,9 @@ export default function ReminderSettingsScreen() {
 
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedTime, setSelectedTime] = useState(new Date());
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([
+    1, 2, 3, 4, 5, 6, 7,
+  ]);
   const [message, setMessage] = useState("");
 
   const { data: prefs } = useQuery<NotificationPrefs>({
@@ -65,7 +67,11 @@ export default function ReminderSettingsScreen() {
 
   const updatePrefsMutation = useMutation({
     mutationFn: async (updates: Partial<NotificationPrefs>) => {
-      const response = await apiRequest("PUT", "/api/notification-prefs", updates);
+      const response = await apiRequest(
+        "PUT",
+        "/api/notification-prefs",
+        updates,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -87,7 +93,9 @@ export default function ReminderSettingsScreen() {
   const toggleDay = (dayId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedDays((prev) =>
-      prev.includes(dayId) ? prev.filter((d) => d !== dayId) : [...prev, dayId].sort()
+      prev.includes(dayId)
+        ? prev.filter((d) => d !== dayId)
+        : [...prev, dayId].sort(),
     );
   };
 
@@ -130,7 +138,9 @@ export default function ReminderSettingsScreen() {
             onPress={() => setShowTimePicker(true)}
           >
             <Feather name="clock" size={20} color="#B88BFF" />
-            <ThemedText style={styles.timeText}>{formatTime(selectedTime)}</ThemedText>
+            <ThemedText style={styles.timeText}>
+              {formatTime(selectedTime)}
+            </ThemedText>
           </Pressable>
 
           {showTimePicker ? (
@@ -170,7 +180,9 @@ export default function ReminderSettingsScreen() {
         </View>
 
         <View style={styles.card}>
-          <ThemedText style={styles.label}>Messaggio personalizzato (opzionale)</ThemedText>
+          <ThemedText style={styles.label}>
+            Messaggio personalizzato (opzionale)
+          </ThemedText>
           <TextInput
             style={styles.input}
             value={message}

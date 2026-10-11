@@ -23,7 +23,15 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { user, couple, partner, logout, createCouple, joinCouple, refreshUser } = useAuth();
+  const {
+    user,
+    couple,
+    partner,
+    logout,
+    createCouple,
+    joinCouple,
+    refreshUser,
+  } = useAuth();
 
   const [ritualCodeInput, setRitualCodeInput] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -48,7 +56,7 @@ export default function ProfileScreen() {
             },
           },
           { text: "OK" },
-        ]
+        ],
       );
     } catch (err: any) {
       setError(err.message || "Errore nella creazione");
@@ -143,24 +151,37 @@ export default function ProfileScreen() {
             >
               <View style={styles.coupleContent}>
                 <View style={styles.partnerInfo}>
-                  <View style={[styles.partnerAvatar, { backgroundColor: theme.secondary }]}>
+                  <View
+                    style={[
+                      styles.partnerAvatar,
+                      { backgroundColor: theme.secondary },
+                    ]}
+                  >
                     <Feather name="heart" size={20} color={theme.buttonText} />
                   </View>
                   <View>
                     <ThemedText type="body">
                       {partner?.nickname || "In attesa del partner..."}
                     </ThemedText>
-                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    <ThemedText
+                      type="small"
+                      style={{ color: theme.textSecondary }}
+                    >
                       {partner ? "Collegato" : "Non ancora collegato"}
                     </ThemedText>
                   </View>
                 </View>
 
                 <View style={styles.codeContainer}>
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     Ritual Code
                   </ThemedText>
-                  <ThemedText style={styles.ritualCode}>{couple.ritualCode}</ThemedText>
+                  <ThemedText style={styles.ritualCode}>
+                    {couple.ritualCode}
+                  </ThemedText>
                 </View>
 
                 <NeonButton
@@ -197,9 +218,13 @@ export default function ProfileScreen() {
           >
             <ThemedText
               type="body"
-              style={[styles.connectDescription, { color: theme.textSecondary }]}
+              style={[
+                styles.connectDescription,
+                { color: theme.textSecondary },
+              ]}
             >
-              Crea un nuovo Ritual Code o inserisci quello del tuo partner per iniziare insieme
+              Crea un nuovo Ritual Code o inserisci quello del tuo partner per
+              iniziare insieme
             </ThemedText>
 
             <NeonButton
@@ -211,11 +236,24 @@ export default function ProfileScreen() {
             </NeonButton>
 
             <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.textSecondary }]} />
-              <ThemedText type="small" style={[styles.dividerText, { color: theme.textSecondary }]}>
+              <View
+                style={[
+                  styles.dividerLine,
+                  { backgroundColor: theme.textSecondary },
+                ]}
+              />
+              <ThemedText
+                type="small"
+                style={[styles.dividerText, { color: theme.textSecondary }]}
+              >
                 oppure
               </ThemedText>
-              <View style={[styles.dividerLine, { backgroundColor: theme.textSecondary }]} />
+              <View
+                style={[
+                  styles.dividerLine,
+                  { backgroundColor: theme.textSecondary },
+                ]}
+              />
             </View>
 
             <NeonInput
@@ -228,7 +266,10 @@ export default function ProfileScreen() {
             />
 
             {error ? (
-              <ThemedText type="small" style={[styles.error, { color: Colors.dark.error }]}>
+              <ThemedText
+                type="small"
+                style={[styles.error, { color: Colors.dark.error }]}
+              >
                 {error}
               </ThemedText>
             ) : null}

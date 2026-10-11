@@ -28,11 +28,19 @@ export function StatCard({ label, value, icon, color, style }: StatCardProps) {
         style={[styles.gradient, { borderColor: `${accentColor}40` }]}
       >
         {icon ? (
-          <View style={[styles.iconContainer, { backgroundColor: `${accentColor}30` }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: `${accentColor}30` },
+            ]}
+          >
             <Feather name={icon} size={20} color={accentColor} />
           </View>
         ) : null}
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+        <ThemedText
+          type="small"
+          style={[styles.label, { color: theme.textSecondary }]}
+        >
           {label}
         </ThemedText>
         <ThemedText style={[styles.value, { color: theme.text }]}>

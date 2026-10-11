@@ -72,7 +72,7 @@ export function CalendarDay({
         </ThemedText>
       </View>
 
-      {(hasMe || hasPartner) ? (
+      {hasMe || hasPartner ? (
         <View style={styles.indicatorRow}>
           {hasMe ? (
             <View

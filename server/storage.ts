@@ -1,4 +1,14 @@
-import { users, couples, walks, notificationPrefs, type User, type InsertUser, type Couple, type Walk, type NotificationPrefs } from "@shared/schema";
+import {
+  users,
+  couples,
+  walks,
+  notificationPrefs,
+  type User,
+  type InsertUser,
+  type Couple,
+  type Walk,
+  type NotificationPrefs,
+} from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
@@ -13,11 +23,21 @@ export interface IStorage {
   getCouple(id: string): Promise<Couple | undefined>;
   getCoupleByRitualCode(ritualCode: string): Promise<Couple | undefined>;
   createCouple(ritualCode: string): Promise<Couple>;
-  createCoupleWithInvite(ritualCode: string, createdByUserId: string, expiresAt: Date): Promise<Couple>;
+  createCoupleWithInvite(
+    ritualCode: string,
+    createdByUserId: string,
+    expiresAt: Date,
+  ): Promise<Couple>;
   updateCouple(id: string, data: Partial<Couple>): Promise<Couple | undefined>;
   getCoupleUsers(coupleId: string): Promise<User[]>;
-  joinCoupleTransaction(coupleId: string, userId: string): Promise<{ success: boolean; error?: string }>;
-  unpairCoupleTransaction(coupleId: string, archivedByUserId: string): Promise<{ success: boolean; error?: string }>;
+  joinCoupleTransaction(
+    coupleId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }>;
+  unpairCoupleTransaction(
+    coupleId: string,
+    archivedByUserId: string,
+  ): Promise<{ success: boolean; error?: string }>;
 
   // Walks
   getWalk(id: string): Promise<Walk | undefined>;
@@ -29,7 +49,10 @@ export interface IStorage {
 
   // Notification Preferences
   getNotificationPrefs(userId: string): Promise<NotificationPrefs | undefined>;
-  upsertNotificationPrefs(userId: string, data: Partial<NotificationPrefs>): Promise<NotificationPrefs>;
+  upsertNotificationPrefs(
+    userId: string,
+    data: Partial<NotificationPrefs>,
+  ): Promise<NotificationPrefs>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -45,10 +68,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
@@ -68,7 +88,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCoupleByRitualCode(ritualCode: string): Promise<Couple | undefined> {
-    const [couple] = await db.select().from(couples).where(eq(couples.ritualCode, ritualCode));
+    const [couple] = await db
+      .select()
+      .from(couples)
+      .where(eq(couples.ritualCode, ritualCode));
     return couple || undefined;
   }
 
@@ -80,7 +103,11 @@ export class DatabaseStorage implements IStorage {
     return couple;
   }
 
-  async createCoupleWithInvite(ritualCode: string, createdByUserId: string, expiresAt: Date): Promise<Couple> {
+  async createCoupleWithInvite(
+    ritualCode: string,
+    createdByUserId: string,
+    expiresAt: Date,
+  ): Promise<Couple> {
     const [couple] = await db
       .insert(couples)
       .values({
@@ -93,7 +120,10 @@ export class DatabaseStorage implements IStorage {
     return couple;
   }
 
-  async updateCouple(id: string, data: Partial<Couple>): Promise<Couple | undefined> {
+  async updateCouple(
+    id: string,
+    data: Partial<Couple>,
+  ): Promise<Couple | undefined> {
     const [couple] = await db
       .update(couples)
       .set(data)
@@ -106,7 +136,10 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(users).where(eq(users.coupleId, coupleId));
   }
 
-  async joinCoupleTransaction(coupleId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async joinCoupleTransaction(
+    coupleId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const result = await db.transaction(async (tx) => {
         const [updated] = await tx
@@ -129,11 +162,17 @@ export class DatabaseStorage implements IStorage {
       });
       return result;
     } catch (error: any) {
-      return { success: false, error: error.message || "Errore durante il collegamento" };
+      return {
+        success: false,
+        error: error.message || "Errore durante il collegamento",
+      };
     }
   }
 
-  async unpairCoupleTransaction(coupleId: string, archivedByUserId: string): Promise<{ success: boolean; error?: string }> {
+  async unpairCoupleTransaction(
+    coupleId: string,
+    archivedByUserId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const result = await db.transaction(async (tx) => {
         const [archived] = await tx
@@ -151,7 +190,10 @@ export class DatabaseStorage implements IStorage {
           throw new Error("La coppia non e attiva o non esiste");
         }
 
-        await tx.update(users).set({ coupleId: null }).where(eq(users.coupleId, coupleId));
+        await tx
+          .update(users)
+          .set({ coupleId: null })
+          .where(eq(users.coupleId, coupleId));
 
         await tx
           .update(notificationPrefs)
@@ -159,14 +201,17 @@ export class DatabaseStorage implements IStorage {
           .where(
             sql`user_id IN (SELECT id FROM users WHERE couple_id IS NULL AND id IN (
               SELECT id FROM users WHERE couple_id = ${coupleId}
-            ))`
+            ))`,
           );
 
         return { success: true };
       });
       return result;
     } catch (error: any) {
-      return { success: false, error: error.message || "Errore durante lo scollegamento" };
+      return {
+        success: false,
+        error: error.message || "Errore durante lo scollegamento",
+      };
     }
   }
 
@@ -225,7 +270,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Notification Preferences
-  async getNotificationPrefs(userId: string): Promise<NotificationPrefs | undefined> {
+  async getNotificationPrefs(
+    userId: string,
+  ): Promise<NotificationPrefs | undefined> {
     const [prefs] = await db
       .select()
       .from(notificationPrefs)
@@ -233,9 +280,12 @@ export class DatabaseStorage implements IStorage {
     return prefs || undefined;
   }
 
-  async upsertNotificationPrefs(userId: string, data: Partial<NotificationPrefs>): Promise<NotificationPrefs> {
+  async upsertNotificationPrefs(
+    userId: string,
+    data: Partial<NotificationPrefs>,
+  ): Promise<NotificationPrefs> {
     const existing = await this.getNotificationPrefs(userId);
-    
+
     if (existing) {
       const [updated] = await db
         .update(notificationPrefs)

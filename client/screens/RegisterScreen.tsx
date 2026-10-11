@@ -80,7 +80,10 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           <ThemedText type="h2" style={styles.title}>
             Crea il tuo account
           </ThemedText>
-          <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <ThemedText
+            type="body"
+            style={[styles.subtitle, { color: theme.textSecondary }]}
+          >
             Inizia il tuo rituale di coppia
           </ThemedText>
         </View>
@@ -116,7 +119,10 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           />
 
           {error ? (
-            <ThemedText type="small" style={[styles.error, { color: Colors.dark.error }]}>
+            <ThemedText
+              type="small"
+              style={[styles.error, { color: Colors.dark.error }]}
+            >
               {error}
             </ThemedText>
           ) : null}
@@ -137,7 +143,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           </ThemedText>
           <Pressable onPress={() => navigation.goBack()}>
             <ThemedText type="link" style={{ color: theme.secondary }}>
-              {" "}Accedi
+              {" "}
+              Accedi
             </ThemedText>
           </Pressable>
         </View>

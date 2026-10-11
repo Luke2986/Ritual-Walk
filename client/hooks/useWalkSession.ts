@@ -35,7 +35,7 @@ const STEP_LENGTH_KM = 0.0007;
 
 export function useWalkSession(): UseWalkSessionReturn {
   const { refreshUser } = useAuth();
-  
+
   const [sessionState, setSessionState] = useState<SessionState>("idle");
   const [steps, setSteps] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
@@ -71,7 +71,7 @@ export function useWalkSession(): UseWalkSessionReturn {
           try {
             const result = await Pedometer.getStepCountAsync(
               new Date(startTime),
-              new Date()
+              new Date(),
             );
             setSteps(result.steps);
           } catch (error) {
@@ -82,7 +82,10 @@ export function useWalkSession(): UseWalkSessionReturn {
       appStateRef.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
     return () => subscription?.remove();
   }, [sessionState, startTime, isPedometerAvailable]);
 
@@ -91,7 +94,7 @@ export function useWalkSession(): UseWalkSessionReturn {
       const response = await apiRequest("POST", "/api/walks/start");
       const data = await response.json();
       const newWalkId = data.walk.id;
-      
+
       setWalkId(newWalkId);
       setSteps(0);
       setDurationSeconds(0);
@@ -112,14 +115,16 @@ export function useWalkSession(): UseWalkSessionReturn {
         try {
           const result = await Pedometer.getStepCountAsync(
             new Date(now - 1000),
-            new Date(now)
+            new Date(now),
           );
           setInitialSteps(result.steps || 0);
         } catch {}
 
-        pedometerSubscription.current = Pedometer.watchStepCount((result: { steps: number }) => {
-          setSteps(result.steps);
-        });
+        pedometerSubscription.current = Pedometer.watchStepCount(
+          (result: { steps: number }) => {
+            setSteps(result.steps);
+          },
+        );
       }
 
       return true;
@@ -214,12 +219,14 @@ export function useWalkSession(): UseWalkSessionReturn {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     const parts: string[] = [];
     if (hours > 0) parts.push(`${hours} ${hours === 1 ? "ora" : "ore"}`);
-    if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? "minuto" : "minuti"}`);
-    if (secs > 0 || parts.length === 0) parts.push(`${secs} ${secs === 1 ? "secondo" : "secondi"}`);
-    
+    if (minutes > 0)
+      parts.push(`${minutes} ${minutes === 1 ? "minuto" : "minuti"}`);
+    if (secs > 0 || parts.length === 0)
+      parts.push(`${secs} ${secs === 1 ? "secondo" : "secondi"}`);
+
     return parts.join(" e ");
   }, []);
 

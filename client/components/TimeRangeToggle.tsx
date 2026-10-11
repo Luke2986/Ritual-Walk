@@ -33,7 +33,9 @@ const springConfig: WithSpringConfig = {
 };
 
 export function TimeRangeToggle({ value, onChange }: TimeRangeToggleProps) {
-  const animatedIndex = useSharedValue(options.findIndex((o) => o.value === value));
+  const animatedIndex = useSharedValue(
+    options.findIndex((o) => o.value === value),
+  );
 
   React.useEffect(() => {
     const idx = options.findIndex((o) => o.value === value);

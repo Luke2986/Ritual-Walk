@@ -44,11 +44,11 @@ export default function QuietHoursSettingsScreen() {
     if (prefs) {
       const [startH, startM] = (prefs.quietStart || "22:00").split(":");
       const [endH, endM] = (prefs.quietEnd || "08:00").split(":");
-      
+
       const start = new Date();
       start.setHours(parseInt(startH), parseInt(startM), 0, 0);
       setStartTime(start);
-      
+
       const end = new Date();
       end.setHours(parseInt(endH), parseInt(endM), 0, 0);
       setEndTime(end);
@@ -57,7 +57,11 @@ export default function QuietHoursSettingsScreen() {
 
   const updatePrefsMutation = useMutation({
     mutationFn: async (updates: Partial<NotificationPrefs>) => {
-      const response = await apiRequest("PUT", "/api/notification-prefs", updates);
+      const response = await apiRequest(
+        "PUT",
+        "/api/notification-prefs",
+        updates,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -89,7 +93,7 @@ export default function QuietHoursSettingsScreen() {
     const startM = startTime.getMinutes().toString().padStart(2, "0");
     const endH = endTime.getHours().toString().padStart(2, "0");
     const endM = endTime.getMinutes().toString().padStart(2, "0");
-    
+
     updatePrefsMutation.mutate({
       quietStart: `${startH}:${startM}`,
       quietEnd: `${endH}:${endM}`,
@@ -120,7 +124,8 @@ export default function QuietHoursSettingsScreen() {
         <View style={styles.infoCard}>
           <Feather name="moon" size={24} color="#B88BFF" />
           <ThemedText style={styles.infoText}>
-            Durante le ore silenziose, non riceverai notifiche push. Perfetto per la notte o i momenti di concentrazione.
+            Durante le ore silenziose, non riceverai notifiche push. Perfetto
+            per la notte o i momenti di concentrazione.
           </ThemedText>
         </View>
 
@@ -131,7 +136,9 @@ export default function QuietHoursSettingsScreen() {
             onPress={() => setShowStartPicker(true)}
           >
             <Feather name="moon" size={20} color="#B88BFF" />
-            <ThemedText style={styles.timeText}>{formatTime(startTime)}</ThemedText>
+            <ThemedText style={styles.timeText}>
+              {formatTime(startTime)}
+            </ThemedText>
           </Pressable>
 
           {showStartPicker ? (
@@ -152,7 +159,9 @@ export default function QuietHoursSettingsScreen() {
             onPress={() => setShowEndPicker(true)}
           >
             <Feather name="sun" size={20} color="#FFE66D" />
-            <ThemedText style={styles.timeText}>{formatTime(endTime)}</ThemedText>
+            <ThemedText style={styles.timeText}>
+              {formatTime(endTime)}
+            </ThemedText>
           </Pressable>
 
           {showEndPicker ? (

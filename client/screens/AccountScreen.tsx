@@ -1,5 +1,16 @@
 import React, { useState, useCallback } from "react";
-import { StyleSheet, View, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Share, Platform, RefreshControl } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  Alert,
+  TextInput,
+  ActivityIndicator,
+  Share,
+  Platform,
+  RefreshControl,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -24,33 +35,43 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-function SettingsRow({ 
-  icon, 
-  label, 
-  onPress, 
+function SettingsRow({
+  icon,
+  label,
+  onPress,
   rightElement,
   destructive = false,
-}: { 
-  icon: string; 
-  label: string; 
+}: {
+  icon: string;
+  label: string;
   onPress?: () => void;
   rightElement?: React.ReactNode;
   destructive?: boolean;
 }) {
   return (
-    <Pressable 
-      style={styles.settingsRow} 
+    <Pressable
+      style={styles.settingsRow}
       onPress={onPress}
       disabled={!onPress && !rightElement}
     >
-      <View style={[styles.settingsIcon, destructive && styles.settingsIconDestructive]}>
-        <Feather 
-          name={icon as any} 
-          size={20} 
-          color={destructive ? "#FF2FB3" : "#3B2F8A"} 
+      <View
+        style={[
+          styles.settingsIcon,
+          destructive && styles.settingsIconDestructive,
+        ]}
+      >
+        <Feather
+          name={icon as any}
+          size={20}
+          color={destructive ? "#FF2FB3" : "#3B2F8A"}
         />
       </View>
-      <ThemedText style={[styles.settingsLabel, destructive && styles.settingsLabelDestructive]}>
+      <ThemedText
+        style={[
+          styles.settingsLabel,
+          destructive && styles.settingsLabelDestructive,
+        ]}
+      >
         {label}
       </ThemedText>
       {rightElement ? (
@@ -70,8 +91,19 @@ export default function AccountScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<NavigationProp>();
-  const { user, couple, partner, logout, createCouple, joinCouple, unpairCouple, regenerateInvite, cancelInvite, refreshUser } = useAuth();
-  
+  const {
+    user,
+    couple,
+    partner,
+    logout,
+    createCouple,
+    joinCouple,
+    unpairCouple,
+    regenerateInvite,
+    cancelInvite,
+    refreshUser,
+  } = useAuth();
+
   const [ritualCodeInput, setRitualCodeInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -129,7 +161,10 @@ export default function AccountScreen() {
       await createCouple();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      Alert.alert("Errore", error.message || "Impossibile creare il codice invito");
+      Alert.alert(
+        "Errore",
+        error.message || "Impossibile creare il codice invito",
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -151,11 +186,20 @@ export default function AccountScreen() {
       let errorMessage = "Errore nel collegamento";
       if (error.message.includes("scaduto")) {
         errorMessage = "Il codice e scaduto";
-      } else if (error.message.includes("non valido") || error.message.includes("INVALID")) {
+      } else if (
+        error.message.includes("non valido") ||
+        error.message.includes("INVALID")
+      ) {
         errorMessage = "Codice non valido";
-      } else if (error.message.includes("usato") || error.message.includes("USED")) {
+      } else if (
+        error.message.includes("usato") ||
+        error.message.includes("USED")
+      ) {
         errorMessage = "Questo codice e gia stato usato";
-      } else if (error.message.includes("te stesso") || error.message.includes("SELF")) {
+      } else if (
+        error.message.includes("te stesso") ||
+        error.message.includes("SELF")
+      ) {
         errorMessage = "Non puoi collegarti con te stesso";
       } else if (error.message) {
         errorMessage = error.message;
@@ -168,32 +212,28 @@ export default function AccountScreen() {
 
   const handleLogout = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
     // Use window.confirm on web for better compatibility
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       const confirmed = window.confirm("Sei sicuro di voler uscire?");
       if (confirmed) {
         await logout();
       }
     } else {
-      Alert.alert(
-        "Esci",
-        "Sei sicuro di voler uscire?",
-        [
-          { text: "Annulla", style: "cancel" },
-          { 
-            text: "Esci", 
-            style: "destructive",
-            onPress: () => logout()
-          },
-        ]
-      );
+      Alert.alert("Esci", "Sei sicuro di voler uscire?", [
+        { text: "Annulla", style: "cancel" },
+        {
+          text: "Esci",
+          style: "destructive",
+          onPress: () => logout(),
+        },
+      ]);
     }
   };
 
   const handleUnpair = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    
+
     const performUnpair = async () => {
       setIsUnpairing(true);
       try {
@@ -201,14 +241,19 @@ export default function AccountScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("Rituale interrotto", "Sei tornato single.");
       } catch (error: any) {
-        Alert.alert("Errore", error.message || "Impossibile scollegare il partner");
+        Alert.alert(
+          "Errore",
+          error.message || "Impossibile scollegare il partner",
+        );
       } finally {
         setIsUnpairing(false);
       }
     };
 
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm("Interrompere il Rituale?\n\nTornerete entrambi single. Non vedrete piu statistiche condivise ne confronto. Le tue camminate resteranno salvate.");
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Interrompere il Rituale?\n\nTornerete entrambi single. Non vedrete piu statistiche condivise ne confronto. Le tue camminate resteranno salvate.",
+      );
       if (confirmed) {
         await performUnpair();
       }
@@ -218,12 +263,12 @@ export default function AccountScreen() {
         "Tornerete entrambi single. Non vedrete piu statistiche condivise ne confronto. Le tue camminate resteranno salvate.",
         [
           { text: "Annulla", style: "cancel" },
-          { 
-            text: "Si, scollega", 
+          {
+            text: "Si, scollega",
             style: "destructive",
-            onPress: performUnpair
+            onPress: performUnpair,
           },
-        ]
+        ],
       );
     }
   };
@@ -236,7 +281,10 @@ export default function AccountScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Fatto!", "Nuovo codice invito generato");
     } catch (error: any) {
-      Alert.alert("Errore", error.message || "Impossibile rigenerare il codice");
+      Alert.alert(
+        "Errore",
+        error.message || "Impossibile rigenerare il codice",
+      );
     } finally {
       setIsRegenerating(false);
     }
@@ -244,41 +292,44 @@ export default function AccountScreen() {
 
   const handleCancelInvite = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    
+
     const performCancel = async () => {
       setIsCanceling(true);
       try {
         await cancelInvite();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error: any) {
-        Alert.alert("Errore", error.message || "Impossibile annullare l'invito");
+        Alert.alert(
+          "Errore",
+          error.message || "Impossibile annullare l'invito",
+        );
       } finally {
         setIsCanceling(false);
       }
     };
 
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm("Annullare l'invito?\n\nIl codice non sara piu valido.");
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Annullare l'invito?\n\nIl codice non sara piu valido.",
+      );
       if (confirmed) {
         await performCancel();
       }
     } else {
-      Alert.alert(
-        "Annullare l'invito?",
-        "Il codice non sara piu valido.",
-        [
-          { text: "No", style: "cancel" },
-          { 
-            text: "Si, annulla", 
-            style: "destructive",
-            onPress: performCancel
-          },
-        ]
-      );
+      Alert.alert("Annullare l'invito?", "Il codice non sara piu valido.", [
+        { text: "No", style: "cancel" },
+        {
+          text: "Si, annulla",
+          style: "destructive",
+          onPress: performCancel,
+        },
+      ]);
     }
   };
 
-  const userInitials = user?.nickname ? user.nickname.substring(0, 2).toUpperCase() : "??";
+  const userInitials = user?.nickname
+    ? user.nickname.substring(0, 2).toUpperCase()
+    : "??";
 
   return (
     <LinearGradient
@@ -329,7 +380,9 @@ export default function AccountScreen() {
         <View style={styles.ritualCard}>
           {(() => {
             const isUnpaired = !couple;
-            const isPendingInviter = couple?.status === "pending" && couple?.createdByUserId === user?.id;
+            const isPendingInviter =
+              couple?.status === "pending" &&
+              couple?.createdByUserId === user?.id;
             const isActive = couple?.status === "active";
 
             if (isActive && partner) {
@@ -337,8 +390,12 @@ export default function AccountScreen() {
                 <>
                   <View style={styles.ritualHeader}>
                     <View style={styles.ritualStatus}>
-                      <View style={[styles.statusDot, styles.statusDotConnected]} />
-                      <ThemedText style={styles.ritualStatusText}>Connesso</ThemedText>
+                      <View
+                        style={[styles.statusDot, styles.statusDotConnected]}
+                      />
+                      <ThemedText style={styles.ritualStatusText}>
+                        Connesso
+                      </ThemedText>
                     </View>
                   </View>
                   <View style={styles.partnerInfo}>
@@ -348,8 +405,12 @@ export default function AccountScreen() {
                       </ThemedText>
                     </View>
                     <View style={styles.partnerDetails}>
-                      <ThemedText style={styles.partnerLabel}>IL TUO PARTNER</ThemedText>
-                      <ThemedText style={styles.partnerName}>{partner.nickname}</ThemedText>
+                      <ThemedText style={styles.partnerLabel}>
+                        IL TUO PARTNER
+                      </ThemedText>
+                      <ThemedText style={styles.partnerName}>
+                        {partner.nickname}
+                      </ThemedText>
                     </View>
                     <Feather name="heart" size={20} color="#FF4D6D" />
                   </View>
@@ -358,42 +419,73 @@ export default function AccountScreen() {
             }
 
             if (isPendingInviter) {
-              const isExpired = couple?.expiresAt && new Date() > new Date(couple.expiresAt);
+              const isExpired =
+                couple?.expiresAt && new Date() > new Date(couple.expiresAt);
               const hasValidCode = couple?.ritualCode && !isExpired;
-              
+
               if (hasValidCode) {
                 return (
                   <>
                     <View style={styles.ritualHeader}>
                       <View style={styles.ritualStatus}>
-                        <View style={[styles.statusDot, styles.statusDotWaiting]} />
-                        <ThemedText style={styles.ritualStatusText}>In attesa del partner</ThemedText>
+                        <View
+                          style={[styles.statusDot, styles.statusDotWaiting]}
+                        />
+                        <ThemedText style={styles.ritualStatusText}>
+                          In attesa del partner
+                        </ThemedText>
                       </View>
                     </View>
                     <View style={styles.ritualCodeContainer}>
-                      <ThemedText style={styles.ritualCodeLabel}>CODICE INVITO</ThemedText>
+                      <ThemedText style={styles.ritualCodeLabel}>
+                        CODICE INVITO
+                      </ThemedText>
                       <View style={styles.ritualCodeBox}>
-                        <ThemedText style={styles.ritualCode}>{couple.ritualCode}</ThemedText>
+                        <ThemedText style={styles.ritualCode}>
+                          {couple.ritualCode}
+                        </ThemedText>
                       </View>
                       <View style={styles.codeActions}>
-                        <Pressable style={styles.codeActionButton} onPress={handleCopyCode}>
+                        <Pressable
+                          style={styles.codeActionButton}
+                          onPress={handleCopyCode}
+                        >
                           <Feather name="copy" size={16} color="#B88BFF" />
-                          <ThemedText style={styles.codeActionText}>Copia</ThemedText>
+                          <ThemedText style={styles.codeActionText}>
+                            Copia
+                          </ThemedText>
                         </Pressable>
-                        <Pressable style={styles.codeActionButton} onPress={handleShareCode}>
+                        <Pressable
+                          style={styles.codeActionButton}
+                          onPress={handleShareCode}
+                        >
                           <Feather name="share-2" size={16} color="#B88BFF" />
-                          <ThemedText style={styles.codeActionText}>Condividi</ThemedText>
+                          <ThemedText style={styles.codeActionText}>
+                            Condividi
+                          </ThemedText>
                         </Pressable>
                       </View>
                       {couple.expiresAt ? (
                         <ThemedText style={styles.ritualCodeHint}>
-                          Scade il {new Date(couple.expiresAt).toLocaleDateString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          Scade il{" "}
+                          {new Date(couple.expiresAt).toLocaleDateString(
+                            "it-IT",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
                         </ThemedText>
                       ) : null}
                     </View>
                     <View style={styles.pendingInviteActions}>
-                      <Pressable 
-                        style={[styles.regenerateButton, isRegenerating && styles.regenerateButtonDisabled]} 
+                      <Pressable
+                        style={[
+                          styles.regenerateButton,
+                          isRegenerating && styles.regenerateButtonDisabled,
+                        ]}
                         onPress={handleRegenerateInvite}
                         disabled={isRegenerating}
                       >
@@ -401,13 +493,22 @@ export default function AccountScreen() {
                           <ActivityIndicator size="small" color="#B88BFF" />
                         ) : (
                           <>
-                            <Feather name="refresh-cw" size={14} color="#B88BFF" />
-                            <ThemedText style={styles.regenerateButtonText}>Rigenera codice</ThemedText>
+                            <Feather
+                              name="refresh-cw"
+                              size={14}
+                              color="#B88BFF"
+                            />
+                            <ThemedText style={styles.regenerateButtonText}>
+                              Rigenera codice
+                            </ThemedText>
                           </>
                         )}
                       </Pressable>
-                      <Pressable 
-                        style={[styles.cancelInviteButton, isCanceling && styles.cancelInviteButtonDisabled]} 
+                      <Pressable
+                        style={[
+                          styles.cancelInviteButton,
+                          isCanceling && styles.cancelInviteButtonDisabled,
+                        ]}
                         onPress={handleCancelInvite}
                         disabled={isCanceling}
                       >
@@ -416,7 +517,9 @@ export default function AccountScreen() {
                         ) : (
                           <>
                             <Feather name="x" size={14} color="#FF2FB3" />
-                            <ThemedText style={styles.cancelInviteButtonText}>Annulla invito</ThemedText>
+                            <ThemedText style={styles.cancelInviteButtonText}>
+                              Annulla invito
+                            </ThemedText>
                           </>
                         )}
                       </Pressable>
@@ -431,13 +534,16 @@ export default function AccountScreen() {
                       {isExpired ? "Codice scaduto" : "Invito non valido"}
                     </ThemedText>
                     <ThemedText style={styles.noCoupleText}>
-                      {isExpired 
+                      {isExpired
                         ? "Il codice invito e scaduto. Genera un nuovo codice per invitare il tuo partner."
                         : "C'e stato un problema con l'invito. Genera un nuovo codice."}
                     </ThemedText>
                     <View style={styles.expiredActions}>
-                      <Pressable 
-                        style={[styles.createCoupleButton, isRegenerating && styles.createCoupleButtonDisabled]} 
+                      <Pressable
+                        style={[
+                          styles.createCoupleButton,
+                          isRegenerating && styles.createCoupleButtonDisabled,
+                        ]}
                         onPress={handleRegenerateInvite}
                         disabled={isRegenerating}
                       >
@@ -451,21 +557,32 @@ export default function AccountScreen() {
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
                             <>
-                              <Feather name="refresh-cw" size={18} color="#FFFFFF" />
-                              <ThemedText style={styles.createCoupleText}>Genera Nuovo Codice</ThemedText>
+                              <Feather
+                                name="refresh-cw"
+                                size={18}
+                                color="#FFFFFF"
+                              />
+                              <ThemedText style={styles.createCoupleText}>
+                                Genera Nuovo Codice
+                              </ThemedText>
                             </>
                           )}
                         </LinearGradient>
                       </Pressable>
-                      <Pressable 
-                        style={[styles.cancelExpiredButton, isCanceling && styles.cancelInviteButtonDisabled]} 
+                      <Pressable
+                        style={[
+                          styles.cancelExpiredButton,
+                          isCanceling && styles.cancelInviteButtonDisabled,
+                        ]}
                         onPress={handleCancelInvite}
                         disabled={isCanceling}
                       >
                         {isCanceling ? (
                           <ActivityIndicator size="small" color="#3B2F8A" />
                         ) : (
-                          <ThemedText style={styles.cancelExpiredButtonText}>Annulla e ricomincia</ThemedText>
+                          <ThemedText style={styles.cancelExpiredButtonText}>
+                            Annulla e ricomincia
+                          </ThemedText>
                         )}
                       </Pressable>
                     </View>
@@ -481,23 +598,32 @@ export default function AccountScreen() {
                   Collega il tuo Partner
                 </ThemedText>
                 <ThemedText style={styles.noCoupleText}>
-                  Genera un codice invito da condividere o inserisci il codice del partner
+                  Genera un codice invito da condividere o inserisci il codice
+                  del partner
                 </ThemedText>
 
                 <View style={styles.joinSection}>
-                  <ThemedText style={styles.joinLabel}>HAI UN CODICE INVITO?</ThemedText>
+                  <ThemedText style={styles.joinLabel}>
+                    HAI UN CODICE INVITO?
+                  </ThemedText>
                   <View style={styles.joinInputRow}>
                     <TextInput
                       style={styles.joinInput}
                       value={ritualCodeInput}
-                      onChangeText={(text) => setRitualCodeInput(text.toUpperCase())}
+                      onChangeText={(text) =>
+                        setRitualCodeInput(text.toUpperCase())
+                      }
                       placeholder="INSERISCI CODICE"
                       placeholderTextColor="#9D6EDD"
                       autoCapitalize="characters"
                       maxLength={8}
                     />
-                    <Pressable 
-                      style={[styles.joinButton, (!ritualCodeInput.trim() || isJoining) && styles.joinButtonDisabled]} 
+                    <Pressable
+                      style={[
+                        styles.joinButton,
+                        (!ritualCodeInput.trim() || isJoining) &&
+                          styles.joinButtonDisabled,
+                      ]}
                       onPress={handleJoinCouple}
                       disabled={!ritualCodeInput.trim() || isJoining}
                     >
@@ -516,8 +642,11 @@ export default function AccountScreen() {
                   <View style={styles.dividerLine} />
                 </View>
 
-                <Pressable 
-                  style={[styles.createCoupleButton, isGenerating && styles.createCoupleButtonDisabled]} 
+                <Pressable
+                  style={[
+                    styles.createCoupleButton,
+                    isGenerating && styles.createCoupleButtonDisabled,
+                  ]}
                   onPress={handleCreateCouple}
                   disabled={isGenerating}
                 >
@@ -532,7 +661,9 @@ export default function AccountScreen() {
                     ) : (
                       <>
                         <Feather name="plus" size={18} color="#FFFFFF" />
-                        <ThemedText style={styles.createCoupleText}>Genera Codice Invito</ThemedText>
+                        <ThemedText style={styles.createCoupleText}>
+                          Genera Codice Invito
+                        </ThemedText>
                       </>
                     )}
                   </LinearGradient>
@@ -567,14 +698,19 @@ export default function AccountScreen() {
               <View style={styles.dangerInfo}>
                 <Feather name="alert-triangle" size={20} color="#FF2FB3" />
                 <View style={styles.dangerTextContainer}>
-                  <ThemedText style={styles.dangerTitle}>Gestione legame</ThemedText>
+                  <ThemedText style={styles.dangerTitle}>
+                    Gestione legame
+                  </ThemedText>
                   <ThemedText style={styles.dangerDescription}>
                     Scollega il tuo account da {partner.nickname}
                   </ThemedText>
                 </View>
               </View>
-              <Pressable 
-                style={[styles.unpairButton, isUnpairing && styles.unpairButtonDisabled]}
+              <Pressable
+                style={[
+                  styles.unpairButton,
+                  isUnpairing && styles.unpairButtonDisabled,
+                ]}
                 onPress={handleUnpair}
                 disabled={isUnpairing}
               >
@@ -583,7 +719,9 @@ export default function AccountScreen() {
                 ) : (
                   <>
                     <Feather name="user-x" size={16} color="#FFFFFF" />
-                    <ThemedText style={styles.unpairButtonText}>Scollega partner</ThemedText>
+                    <ThemedText style={styles.unpairButtonText}>
+                      Scollega partner
+                    </ThemedText>
                   </>
                 )}
               </Pressable>

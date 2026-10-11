@@ -12,11 +12,17 @@ interface KpiCardProps {
   accessibilityLabel: string;
 }
 
-function KpiCard({ label, value, unit, color, accessibilityLabel }: KpiCardProps) {
+function KpiCard({
+  label,
+  value,
+  unit,
+  color,
+  accessibilityLabel,
+}: KpiCardProps) {
   const { theme } = useTheme();
-  
+
   return (
-    <View 
+    <View
       style={[styles.card, { backgroundColor: theme.cardBackground }]}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="text"
@@ -25,9 +31,7 @@ function KpiCard({ label, value, unit, color, accessibilityLabel }: KpiCardProps
         {label}
       </ThemedText>
       <View style={styles.valueRow}>
-        <ThemedText style={[styles.value, { color }]}>
-          {value}
-        </ThemedText>
+        <ThemedText style={[styles.value, { color }]}>{value}</ThemedText>
         {unit ? (
           <ThemedText style={[styles.unit, { color: theme.textSecondary }]}>
             {unit}
@@ -45,14 +49,14 @@ interface WalkKpiRowProps {
   durationAccessible: string;
 }
 
-export function WalkKpiRow({ 
-  steps, 
-  distanceKm, 
+export function WalkKpiRow({
+  steps,
+  distanceKm,
   durationFormatted,
-  durationAccessible 
+  durationAccessible,
 }: WalkKpiRowProps) {
   const { theme } = useTheme();
-  
+
   const formatDistance = (km: number): { value: string; unit: string } => {
     if (km < 1) {
       return { value: Math.round(km * 1000).toString(), unit: "m" };
@@ -61,7 +65,7 @@ export function WalkKpiRow({
   };
 
   const distance = formatDistance(distanceKm);
-  
+
   return (
     <View style={styles.container}>
       <KpiCard

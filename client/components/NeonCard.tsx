@@ -92,10 +92,7 @@ export function NeonCard({
     >
       <View style={[styles.cardWrapper, style]}>
         <LinearGradient
-          colors={[
-            `${color}15`,
-            `${theme.backgroundDefault}`,
-          ]}
+          colors={[`${color}15`, `${theme.backgroundDefault}`]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
@@ -107,7 +104,10 @@ export function NeonCard({
           ]}
         >
           {title ? (
-            <ThemedText type="small" style={[styles.title, { color: theme.textSecondary }]}>
+            <ThemedText
+              type="small"
+              style={[styles.title, { color: theme.textSecondary }]}
+            >
               {title}
             </ThemedText>
           ) : null}

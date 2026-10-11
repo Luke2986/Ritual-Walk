@@ -1,1 +1,5 @@
-export { MapViewCompat, PolylineCompat, MarkerCompat } from "./MapViewCompat.web";
+export {
+  MapViewCompat,
+  PolylineCompat,
+  MarkerCompat,
+} from "./MapViewCompat.web";

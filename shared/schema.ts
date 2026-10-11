@@ -1,5 +1,14 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, timestamp, json, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  integer,
+  real,
+  timestamp,
+  json,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -41,12 +50,15 @@ export const walks = pgTable("walks", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
   coupleId: varchar("couple_id").references(() => couples.id),
   distanceKm: real("distance_km").notNull(),
   durationSeconds: integer("duration_seconds").notNull(),
   stepsTotal: integer("steps_total").default(0),
-  pathJson: json("path_json").$type<{ latitude: number; longitude: number }[]>(),
+  pathJson:
+    json("path_json").$type<{ latitude: number; longitude: number }[]>(),
   isActive: boolean("is_active").notNull().default(false),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
@@ -71,8 +83,12 @@ export const userBadges = pgTable("user_badges", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  badgeId: varchar("badge_id").notNull().references(() => badges.id),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  badgeId: varchar("badge_id")
+    .notNull()
+    .references(() => badges.id),
   earnedAt: timestamp("earned_at").defaultNow().notNull(),
 });
 
@@ -81,17 +97,33 @@ export const notificationPrefs = pgTable("notification_prefs", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id).unique(),
-  notificationsEnabled: boolean("notifications_enabled").notNull().default(false),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id)
+    .unique(),
+  notificationsEnabled: boolean("notifications_enabled")
+    .notNull()
+    .default(false),
   remindersEnabled: boolean("reminders_enabled").notNull().default(true),
-  reminderTime: varchar("reminder_time", { length: 5 }).notNull().default("18:00"),
-  reminderDays: json("reminder_days").$type<number[]>().notNull().default([1, 2, 3, 4, 5, 6, 7]),
+  reminderTime: varchar("reminder_time", { length: 5 })
+    .notNull()
+    .default("18:00"),
+  reminderDays: json("reminder_days")
+    .$type<number[]>()
+    .notNull()
+    .default([1, 2, 3, 4, 5, 6, 7]),
   reminderMessage: text("reminder_message"),
-  partnerAlertsEnabled: boolean("partner_alerts_enabled").notNull().default(true),
+  partnerAlertsEnabled: boolean("partner_alerts_enabled")
+    .notNull()
+    .default(true),
   badgesEnabled: boolean("badges_enabled").notNull().default(true),
-  weeklySummaryEnabled: boolean("weekly_summary_enabled").notNull().default(true),
+  weeklySummaryEnabled: boolean("weekly_summary_enabled")
+    .notNull()
+    .default(true),
   weeklySummaryDay: integer("weekly_summary_day").notNull().default(7),
-  weeklySummaryTime: varchar("weekly_summary_time", { length: 5 }).notNull().default("10:00"),
+  weeklySummaryTime: varchar("weekly_summary_time", { length: 5 })
+    .notNull()
+    .default("10:00"),
   quietHoursEnabled: boolean("quiet_hours_enabled").notNull().default(false),
   quietStart: varchar("quiet_start", { length: 5 }).notNull().default("22:00"),
   quietEnd: varchar("quiet_end", { length: 5 }).notNull().default("08:00"),
@@ -144,12 +176,15 @@ export const userBadgesRelations = relations(userBadges, ({ one }) => ({
   }),
 }));
 
-export const notificationPrefsRelations = relations(notificationPrefs, ({ one }) => ({
-  user: one(users, {
-    fields: [notificationPrefs.userId],
-    references: [users.id],
+export const notificationPrefsRelations = relations(
+  notificationPrefs,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [notificationPrefs.userId],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 // Schemas for validation
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -201,9 +236,15 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email("Email non valida"),
   password: z.string().min(6, "La password deve avere almeno 6 caratteri"),
-  nickname: z.string().min(2, "Il nickname deve avere almeno 2 caratteri").max(50),
+  nickname: z
+    .string()
+    .min(2, "Il nickname deve avere almeno 2 caratteri")
+    .max(50),
 });
 
 export const joinCoupleSchema = z.object({
-  ritualCode: z.string().min(6, "Il codice deve avere almeno 6 caratteri").max(8),
+  ritualCode: z
+    .string()
+    .min(6, "Il codice deve avere almeno 6 caratteri")
+    .max(8),
 });

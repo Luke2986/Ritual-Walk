@@ -37,17 +37,17 @@ export function StopSlider({ onStop, disabled = false }: StopSliderProps) {
     .enabled(!disabled)
     .onUpdate((event) => {
       if (isCompleted.value) return;
-      
+
       const newX = Math.max(0, Math.min(event.translationX, SLIDE_THRESHOLD));
       translateX.value = newX;
-      
+
       if (newX > SLIDE_THRESHOLD * 0.5 && newX < SLIDE_THRESHOLD * 0.6) {
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
       }
     })
     .onEnd(() => {
       if (isCompleted.value) return;
-      
+
       if (translateX.value >= SLIDE_THRESHOLD * 0.9) {
         isCompleted.value = true;
         translateX.value = withSpring(SLIDE_THRESHOLD);
@@ -66,7 +66,7 @@ export function StopSlider({ onStop, disabled = false }: StopSliderProps) {
       translateX.value,
       [0, SLIDE_THRESHOLD * 0.5],
       [1, 0],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     ),
   }));
 

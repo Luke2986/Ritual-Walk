@@ -10,7 +10,9 @@ interface LoadingScreenProps {
   message?: string;
 }
 
-export function LoadingScreen({ message = "Caricamento..." }: LoadingScreenProps) {
+export function LoadingScreen({
+  message = "Caricamento...",
+}: LoadingScreenProps) {
   const { theme } = useTheme();
 
   return (

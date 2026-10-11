@@ -1,5 +1,11 @@
 import React, { ReactNode } from "react";
-import { StyleSheet, Pressable, ViewStyle, StyleProp, View } from "react-native";
+import {
+  StyleSheet,
+  Pressable,
+  ViewStyle,
+  StyleProp,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -69,7 +75,10 @@ export function NeonButton({
       case "small":
         return { height: 44, paddingHorizontal: Spacing.lg };
       default:
-        return { height: Spacing.buttonHeight, paddingHorizontal: Spacing["2xl"] };
+        return {
+          height: Spacing.buttonHeight,
+          paddingHorizontal: Spacing["2xl"],
+        };
     }
   };
 
@@ -97,20 +106,17 @@ export function NeonButton({
       );
     }
 
-    const gradientColors = variant === "secondary"
-      ? [Colors.light.secondary, Colors.light.accent] as const
-      : [Colors.light.primary, Colors.light.accent] as const;
+    const gradientColors =
+      variant === "secondary"
+        ? ([Colors.light.secondary, Colors.light.accent] as const)
+        : ([Colors.light.primary, Colors.light.accent] as const);
 
     return (
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={[
-          styles.button,
-          getSizeStyles(),
-          disabled && styles.disabled,
-        ]}
+        style={[styles.button, getSizeStyles(), disabled && styles.disabled]}
       >
         <ThemedText
           type="body"

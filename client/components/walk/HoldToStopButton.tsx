@@ -1,5 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { View, StyleSheet, Platform, TouchableWithoutFeedback } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Platform,
+  TouchableWithoutFeedback,
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,7 +23,10 @@ interface HoldToStopButtonProps {
   disabled?: boolean;
 }
 
-export function HoldToStopButton({ onStop, disabled = false }: HoldToStopButtonProps) {
+export function HoldToStopButton({
+  onStop,
+  disabled = false,
+}: HoldToStopButtonProps) {
   const progress = useSharedValue(0);
   const [isHolding, setIsHolding] = useState(false);
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -33,11 +41,11 @@ export function HoldToStopButton({ onStop, disabled = false }: HoldToStopButtonP
 
   const startHold = useCallback(() => {
     if (disabled || completedRef.current) return;
-    
+
     cleanup();
     completedRef.current = false;
     setIsHolding(true);
-    
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {}
@@ -62,7 +70,7 @@ export function HoldToStopButton({ onStop, disabled = false }: HoldToStopButtonP
 
   const endHold = useCallback(() => {
     if (completedRef.current) return;
-    
+
     cleanup();
     setIsHolding(false);
     progress.value = withTiming(0, { duration: 150 });
@@ -118,10 +126,10 @@ export function HoldToStopButton({ onStop, disabled = false }: HoldToStopButtonP
       >
         <Animated.View style={[styles.progressBar, progressStyle]} />
         <View style={styles.content} pointerEvents="none">
-          <Feather 
-            name="square" 
-            size={20} 
-            color={isHolding ? "#FFFFFF" : Colors.light.error} 
+          <Feather
+            name="square"
+            size={20}
+            color={isHolding ? "#FFFFFF" : Colors.light.error}
           />
           <ThemedText style={[styles.text, isHolding && styles.textHolding]}>
             {isHolding ? "Rilascia per annullare" : "Tieni premuto per fermare"}
@@ -145,10 +153,10 @@ export function HoldToStopButton({ onStop, disabled = false }: HoldToStopButtonP
       >
         <Animated.View style={[styles.progressBar, progressStyle]} />
         <View style={styles.content}>
-          <Feather 
-            name="square" 
-            size={20} 
-            color={isHolding ? "#FFFFFF" : Colors.light.error} 
+          <Feather
+            name="square"
+            size={20}
+            color={isHolding ? "#FFFFFF" : Colors.light.error}
           />
           <ThemedText style={[styles.text, isHolding && styles.textHolding]}>
             {isHolding ? "Rilascia per annullare" : "Tieni premuto per fermare"}

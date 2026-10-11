@@ -1,5 +1,12 @@
 import React, { useState, useCallback, ReactNode } from "react";
-import { ScrollView, RefreshControl, StyleSheet, ViewStyle, Alert, Platform } from "react-native";
+import {
+  ScrollView,
+  RefreshControl,
+  StyleSheet,
+  ViewStyle,
+  Alert,
+  Platform,
+} from "react-native";
 import { useTheme } from "@/hooks/useTheme";
 
 interface RefreshableScreenProps {
@@ -22,7 +29,7 @@ export function RefreshableScreen({
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
-    
+
     setRefreshing(true);
     try {
       await onRefresh();
@@ -66,23 +73,26 @@ const styles = StyleSheet.create({
 export function useRefreshState() {
   const [refreshing, setRefreshing] = useState(false);
 
-  const handleRefresh = useCallback(async (refreshFn: () => Promise<void>) => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    try {
-      await refreshFn();
-    } catch (error) {
-      const message = "Sei offline: dati non aggiornati";
-      if (Platform.OS === "web") {
-        console.warn(message);
-      } else {
-        Alert.alert("Errore", message);
+  const handleRefresh = useCallback(
+    async (refreshFn: () => Promise<void>) => {
+      if (refreshing) return;
+
+      setRefreshing(true);
+      try {
+        await refreshFn();
+      } catch (error) {
+        const message = "Sei offline: dati non aggiornati";
+        if (Platform.OS === "web") {
+          console.warn(message);
+        } else {
+          Alert.alert("Errore", message);
+        }
+      } finally {
+        setRefreshing(false);
       }
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
+    },
+    [refreshing],
+  );
 
   return { refreshing, handleRefresh, setRefreshing };
 }

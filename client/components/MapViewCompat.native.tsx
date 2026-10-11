@@ -61,7 +61,11 @@ export function MapViewCompat({
   );
 }
 
-export function PolylineCompat({ coordinates, strokeColor, strokeWidth }: PolylineProps) {
+export function PolylineCompat({
+  coordinates,
+  strokeColor,
+  strokeWidth,
+}: PolylineProps) {
   return (
     <Polyline
       coordinates={coordinates}

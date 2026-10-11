@@ -30,9 +30,12 @@ class TrackingService {
   private foregroundSubscription: Location.LocationSubscription | null = null;
   private isWebMode: boolean = Platform.OS === "web";
 
-  async requestPermissions(): Promise<{ foreground: boolean; background: boolean }> {
+  async requestPermissions(): Promise<{
+    foreground: boolean;
+    background: boolean;
+  }> {
     const foreground = await Location.requestForegroundPermissionsAsync();
-    
+
     if (!foreground.granted) {
       return { foreground: false, background: false };
     }
@@ -45,14 +48,16 @@ class TrackingService {
     // iOS in Expo Go doesn't support background location - skip the request entirely
     // Background location only works with development builds or standalone apps on iOS
     if (Platform.OS === "ios") {
-      console.log("iOS detected - skipping background location request (not supported in Expo Go)");
+      console.log(
+        "iOS detected - skipping background location request (not supported in Expo Go)",
+      );
       return { foreground: true, background: false };
     }
 
     // Android supports background location in Expo Go
     try {
       const background = await Location.requestBackgroundPermissionsAsync();
-      
+
       if (!background.granted) {
         if (!background.canAskAgain) {
           Alert.alert(
@@ -60,13 +65,13 @@ class TrackingService {
             "Per tracciare le camminate anche a schermo spento, abilita 'Sempre' nelle impostazioni di localizzazione.",
             [
               { text: "Annulla", style: "cancel" },
-              { 
-                text: "Impostazioni", 
+              {
+                text: "Impostazioni",
                 onPress: () => {
                   Linking.openSettings();
-                }
+                },
               },
-            ]
+            ],
           );
         }
         return { foreground: true, background: false };
@@ -81,7 +86,7 @@ class TrackingService {
 
   async startTracking(walkId: string): Promise<boolean> {
     const permissions = await this.requestPermissions();
-    
+
     if (!permissions.foreground) {
       return false;
     }
@@ -91,7 +96,8 @@ class TrackingService {
 
     if (!this.isWebMode && permissions.background) {
       try {
-        const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+        const isRunning =
+          await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
         if (!isRunning) {
           await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
             accuracy: Location.Accuracy.High,
@@ -132,7 +138,7 @@ class TrackingService {
         if (!activeWalk || activeWalk.isPaused) return;
 
         await persistLocationsBatch(walkId, [location]);
-      }
+      },
     );
   }
 
@@ -145,7 +151,8 @@ class TrackingService {
       this.foregroundSubscription = null;
     }
 
-    const pausedTime = Date.now() - activeWalk.startTime - activeWalk.pausedTime;
+    const pausedTime =
+      Date.now() - activeWalk.startTime - activeWalk.pausedTime;
     await updateActiveWalkPause(true, pausedTime);
   }
 
@@ -172,7 +179,8 @@ class TrackingService {
 
     if (!this.isWebMode) {
       try {
-        const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+        const isRunning =
+          await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
         if (isRunning) {
           await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
         }
@@ -189,7 +197,7 @@ class TrackingService {
 
     const distanceKm = this.calculateTotalDistance(trackPoints);
     const durationSeconds = Math.floor(
-      (Date.now() - activeWalk.startTime - activeWalk.pausedTime) / 1000
+      (Date.now() - activeWalk.startTime - activeWalk.pausedTime) / 1000,
     );
 
     await clearTrackPoints(activeWalk.walkId);
@@ -209,13 +217,18 @@ class TrackingService {
         points[i - 1].latitude,
         points[i - 1].longitude,
         points[i].latitude,
-        points[i].longitude
+        points[i].longitude,
       );
     }
     return total;
   }
 
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -231,7 +244,7 @@ class TrackingService {
 
   async getStatus(): Promise<TrackingStatus> {
     const activeWalk = await getActiveWalk();
-    
+
     if (!activeWalk) {
       return {
         isTracking: false,

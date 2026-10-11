@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { 
-  StyleSheet, 
-  View, 
-  Platform, 
-  Linking, 
+import {
+  StyleSheet,
+  View,
+  Platform,
+  Linking,
   Pressable,
   AccessibilityInfo,
   AppState,
@@ -60,7 +60,9 @@ export default function TrackWalkScreen() {
     formatDurationAccessible,
   } = useWalkSession();
 
-  const [pedometerPermission, setPedometerPermission] = useState<boolean | null>(null);
+  const [pedometerPermission, setPedometerPermission] = useState<
+    boolean | null
+  >(null);
   const pulseScale = useSharedValue(1);
   const chipPulse = useSharedValue(1);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -72,26 +74,28 @@ export default function TrackWalkScreen() {
           Pedometer.isAvailableAsync(),
           Pedometer.getPermissionsAsync(),
         ]);
-        
+
         if (isAvailable) {
           setPedometerPermission(true);
           return;
         }
-        
+
         if (permissionResult.granted || permissionResult.status === "granted") {
           setPedometerPermission(true);
           return;
         }
-        
+
         if (permissionResult.status === "undetermined") {
           setPedometerPermission(null);
           return;
         }
-        
+
         setPedometerPermission(false);
       } catch (error) {
         console.error("Error checking pedometer permission:", error);
-        const isAvailable = await Pedometer.isAvailableAsync().catch(() => false);
+        const isAvailable = await Pedometer.isAvailableAsync().catch(
+          () => false,
+        );
         setPedometerPermission(isAvailable);
       }
     } else {
@@ -101,7 +105,7 @@ export default function TrackWalkScreen() {
 
   useEffect(() => {
     checkPedometerPermission();
-    
+
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (
         appStateRef.current.match(/inactive|background/) &&
@@ -112,7 +116,10 @@ export default function TrackWalkScreen() {
       appStateRef.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
     return () => subscription?.remove();
   }, [checkPedometerPermission]);
 
@@ -121,7 +128,7 @@ export default function TrackWalkScreen() {
       pulseScale.value = withRepeat(
         withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
         -1,
-        true
+        true,
       );
     } else {
       pulseScale.value = withTiming(1);
@@ -133,7 +140,7 @@ export default function TrackWalkScreen() {
       chipPulse.value = withRepeat(
         withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
-        true
+        true,
       );
     } else {
       chipPulse.value = withTiming(1);
@@ -156,7 +163,7 @@ export default function TrackWalkScreen() {
         return;
       }
     }
-    
+
     await startSession();
   };
 
@@ -174,17 +181,29 @@ export default function TrackWalkScreen() {
         <View
           style={[
             styles.permissionContainer,
-            { paddingTop: headerHeight + Spacing.xl, paddingBottom: insets.bottom + Spacing.xl },
+            {
+              paddingTop: headerHeight + Spacing.xl,
+              paddingBottom: insets.bottom + Spacing.xl,
+            },
           ]}
         >
-          <View style={[styles.iconContainer, { backgroundColor: `${theme.primary}20` }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: `${theme.primary}20` },
+            ]}
+          >
             <Feather name="activity" size={48} color={theme.primary} />
           </View>
           <ThemedText type="h3" style={styles.permissionTitle}>
             Accesso al Movimento
           </ThemedText>
-          <ThemedText type="body" style={[styles.permissionText, { color: theme.textSecondary }]}>
-            Abilita 'Movimento' nelle impostazioni per contare i passi durante le tue camminate
+          <ThemedText
+            type="body"
+            style={[styles.permissionText, { color: theme.textSecondary }]}
+          >
+            Abilita 'Movimento' nelle impostazioni per contare i passi durante
+            le tue camminate
           </ThemedText>
 
           <NeonButton
@@ -209,39 +228,67 @@ export default function TrackWalkScreen() {
       colors={[theme.backgroundRoot, theme.backgroundDefault]}
       style={styles.gradient}
     >
-      <View style={[styles.container, { paddingTop: headerHeight + Spacing.lg }]}>
+      <View
+        style={[styles.container, { paddingTop: headerHeight + Spacing.lg }]}
+      >
         {sessionState === "idle" ? (
-          <View style={[styles.idleContainer, { paddingBottom: tabBarHeight + Spacing.xl }]}>
+          <View
+            style={[
+              styles.idleContainer,
+              { paddingBottom: tabBarHeight + Spacing.xl },
+            ]}
+          >
             <View style={styles.idleContent}>
-              <View style={[styles.heroIcon, { backgroundColor: `${Colors.light.accentCyan}15` }]}>
-                <Feather name="activity" size={64} color={Colors.light.accentCyan} />
+              <View
+                style={[
+                  styles.heroIcon,
+                  { backgroundColor: `${Colors.light.accentCyan}15` },
+                ]}
+              >
+                <Feather
+                  name="activity"
+                  size={64}
+                  color={Colors.light.accentCyan}
+                />
               </View>
               <ThemedText type="h2" style={styles.heroTitle}>
                 Pronto per il rituale?
               </ThemedText>
-              <ThemedText style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.heroSubtitle, { color: theme.textSecondary }]}
+              >
                 Inizia una sessione per tracciare i tuoi passi
               </ThemedText>
 
               {Platform.OS === "android" ? (
-                <View style={[styles.infoCard, { backgroundColor: theme.cardBackground }]}>
+                <View
+                  style={[
+                    styles.infoCard,
+                    { backgroundColor: theme.cardBackground },
+                  ]}
+                >
                   <Feather name="info" size={16} color={theme.textSecondary} />
-                  <ThemedText style={[styles.infoText, { color: theme.textSecondary }]}>
-                    Su Android, i passi in background richiedono Health Connect (fase 2)
+                  <ThemedText
+                    style={[styles.infoText, { color: theme.textSecondary }]}
+                  >
+                    Su Android, i passi in background richiedono Health Connect
+                    (fase 2)
                   </ThemedText>
                 </View>
               ) : null}
             </View>
 
             <View style={styles.startButtonContainer}>
-              <NeonButton 
-                onPress={handleStartSession} 
+              <NeonButton
+                onPress={handleStartSession}
                 size="large"
                 style={styles.startButton}
                 testID="button-start-session"
               >
                 <View style={styles.startButtonContent}>
-                  <View style={[styles.recordDot, { backgroundColor: "#FFFFFF" }]} />
+                  <View
+                    style={[styles.recordDot, { backgroundColor: "#FFFFFF" }]}
+                  />
                   <ThemedText style={styles.startButtonText}>Inizia</ThemedText>
                 </View>
               </NeonButton>
@@ -250,17 +297,28 @@ export default function TrackWalkScreen() {
         ) : null}
 
         {sessionState === "running" ? (
-          <Animated.View 
+          <Animated.View
             entering={FadeIn.duration(300)}
-            style={[styles.runningContainer, { paddingBottom: tabBarHeight + Spacing.xl }]}
+            style={[
+              styles.runningContainer,
+              { paddingBottom: tabBarHeight + Spacing.xl },
+            ]}
           >
             <View style={styles.statusBar}>
-              <View 
-                style={[styles.statusChip, { backgroundColor: `${Colors.light.accentMagenta}20` }]}
+              <View
+                style={[
+                  styles.statusChip,
+                  { backgroundColor: `${Colors.light.accentMagenta}20` },
+                ]}
                 testID="status-chip-running"
               >
                 <Animated.View style={[styles.statusDot, chipPulseStyle]} />
-                <ThemedText style={[styles.statusText, { color: Colors.light.accentMagenta }]}>
+                <ThemedText
+                  style={[
+                    styles.statusText,
+                    { color: Colors.light.accentMagenta },
+                  ]}
+                >
                   In corso
                 </ThemedText>
               </View>
@@ -276,7 +334,9 @@ export default function TrackWalkScreen() {
             </View>
 
             <View style={styles.motivationSection}>
-              <ThemedText style={[styles.motivationText, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.motivationText, { color: theme.textSecondary }]}
+              >
                 Continua cos&igrave;! Ogni passo conta.
               </ThemedText>
             </View>
@@ -288,21 +348,33 @@ export default function TrackWalkScreen() {
                   testID="button-toggle-lock"
                   style={[
                     styles.lockButton,
-                    { backgroundColor: isLocked ? `${Colors.light.accentCyan}20` : theme.cardBackground },
+                    {
+                      backgroundColor: isLocked
+                        ? `${Colors.light.accentCyan}20`
+                        : theme.cardBackground,
+                    },
                   ]}
-                  accessibilityLabel={isLocked ? "Sblocca tocchi" : "Blocca tocchi"}
+                  accessibilityLabel={
+                    isLocked ? "Sblocca tocchi" : "Blocca tocchi"
+                  }
                   accessibilityRole="switch"
                   accessibilityState={{ checked: isLocked }}
                 >
-                  <Feather 
-                    name={isLocked ? "lock" : "unlock"} 
-                    size={20} 
-                    color={isLocked ? Colors.light.accentCyan : theme.textSecondary} 
+                  <Feather
+                    name={isLocked ? "lock" : "unlock"}
+                    size={20}
+                    color={
+                      isLocked ? Colors.light.accentCyan : theme.textSecondary
+                    }
                   />
-                  <ThemedText 
+                  <ThemedText
                     style={[
-                      styles.lockButtonText, 
-                      { color: isLocked ? Colors.light.accentCyan : theme.textSecondary }
+                      styles.lockButtonText,
+                      {
+                        color: isLocked
+                          ? Colors.light.accentCyan
+                          : theme.textSecondary,
+                      },
                     ]}
                   >
                     {isLocked ? "Bloccato" : "Blocca"}

@@ -28,13 +28,21 @@ export function EmptyState({
 
   return (
     <View style={[styles.container, style]}>
-      <View style={[styles.iconContainer, { backgroundColor: `${theme.primary}20` }]}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: `${theme.primary}20` },
+        ]}
+      >
         <Feather name={icon} size={48} color={theme.primary} />
       </View>
       <ThemedText type="h4" style={styles.title}>
         {title}
       </ThemedText>
-      <ThemedText type="body" style={[styles.description, { color: theme.textSecondary }]}>
+      <ThemedText
+        type="body"
+        style={[styles.description, { color: theme.textSecondary }]}
+      >
         {description}
       </ThemedText>
       {actionLabel && onAction ? (

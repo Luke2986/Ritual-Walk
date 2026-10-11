@@ -1,5 +1,13 @@
 import React, { useState, useCallback } from "react";
-import { StyleSheet, View, ScrollView, Pressable, RefreshControl, Alert, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  Alert,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -24,36 +32,126 @@ interface Badge {
 }
 
 const DEFAULT_BADGES: Badge[] = [
-  { id: "1", name: "Primo Passo", description: "Completa la tua prima camminata", icon: "play", kmThreshold: null, streakThreshold: null, walkCountThreshold: 1, earned: false },
-  { id: "2", name: "5 Km", description: "Raggiungi 5 km totali", icon: "map-pin", kmThreshold: 5, streakThreshold: null, walkCountThreshold: null, earned: false },
-  { id: "3", name: "10 Km", description: "Raggiungi 10 km totali", icon: "navigation", kmThreshold: 10, streakThreshold: null, walkCountThreshold: null, earned: false },
-  { id: "4", name: "Maratoneta", description: "Raggiungi 42 km totali", icon: "award", kmThreshold: 42, streakThreshold: null, walkCountThreshold: null, earned: false },
-  { id: "5", name: "3 Giorni", description: "Mantieni uno streak di 3 giorni", icon: "zap", kmThreshold: null, streakThreshold: 3, walkCountThreshold: null, earned: false },
-  { id: "6", name: "7 Giorni", description: "Mantieni uno streak di 7 giorni", icon: "star", kmThreshold: null, streakThreshold: 7, walkCountThreshold: null, earned: false },
-  { id: "7", name: "30 Giorni", description: "Mantieni uno streak di 30 giorni", icon: "sun", kmThreshold: null, streakThreshold: 30, walkCountThreshold: null, earned: false },
-  { id: "8", name: "10 Camminate", description: "Completa 10 camminate", icon: "trending-up", kmThreshold: null, streakThreshold: null, walkCountThreshold: 10, earned: false },
-  { id: "9", name: "100 Km", description: "Raggiungi 100 km totali", icon: "target", kmThreshold: 100, streakThreshold: null, walkCountThreshold: null, earned: false },
+  {
+    id: "1",
+    name: "Primo Passo",
+    description: "Completa la tua prima camminata",
+    icon: "play",
+    kmThreshold: null,
+    streakThreshold: null,
+    walkCountThreshold: 1,
+    earned: false,
+  },
+  {
+    id: "2",
+    name: "5 Km",
+    description: "Raggiungi 5 km totali",
+    icon: "map-pin",
+    kmThreshold: 5,
+    streakThreshold: null,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "3",
+    name: "10 Km",
+    description: "Raggiungi 10 km totali",
+    icon: "navigation",
+    kmThreshold: 10,
+    streakThreshold: null,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "4",
+    name: "Maratoneta",
+    description: "Raggiungi 42 km totali",
+    icon: "award",
+    kmThreshold: 42,
+    streakThreshold: null,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "5",
+    name: "3 Giorni",
+    description: "Mantieni uno streak di 3 giorni",
+    icon: "zap",
+    kmThreshold: null,
+    streakThreshold: 3,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "6",
+    name: "7 Giorni",
+    description: "Mantieni uno streak di 7 giorni",
+    icon: "star",
+    kmThreshold: null,
+    streakThreshold: 7,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "7",
+    name: "30 Giorni",
+    description: "Mantieni uno streak di 30 giorni",
+    icon: "sun",
+    kmThreshold: null,
+    streakThreshold: 30,
+    walkCountThreshold: null,
+    earned: false,
+  },
+  {
+    id: "8",
+    name: "10 Camminate",
+    description: "Completa 10 camminate",
+    icon: "trending-up",
+    kmThreshold: null,
+    streakThreshold: null,
+    walkCountThreshold: 10,
+    earned: false,
+  },
+  {
+    id: "9",
+    name: "100 Km",
+    description: "Raggiungi 100 km totali",
+    icon: "target",
+    kmThreshold: 100,
+    streakThreshold: null,
+    walkCountThreshold: null,
+    earned: false,
+  },
 ];
 
-function BadgeItem({ badge, totalKm, currentStreak, walkCount }: { 
-  badge: Badge; 
+function BadgeItem({
+  badge,
+  totalKm,
+  currentStreak,
+  walkCount,
+}: {
+  badge: Badge;
   totalKm: number;
   currentStreak: number;
   walkCount: number;
 }) {
   const { theme } = useTheme();
-  
+
   const isEarned = React.useMemo(() => {
     if (badge.kmThreshold && totalKm >= badge.kmThreshold) return true;
-    if (badge.streakThreshold && currentStreak >= badge.streakThreshold) return true;
-    if (badge.walkCountThreshold && walkCount >= badge.walkCountThreshold) return true;
+    if (badge.streakThreshold && currentStreak >= badge.streakThreshold)
+      return true;
+    if (badge.walkCountThreshold && walkCount >= badge.walkCountThreshold)
+      return true;
     return false;
   }, [badge, totalKm, currentStreak, walkCount]);
 
   const progress = React.useMemo(() => {
     if (badge.kmThreshold) return Math.min(totalKm / badge.kmThreshold, 1);
-    if (badge.streakThreshold) return Math.min(currentStreak / badge.streakThreshold, 1);
-    if (badge.walkCountThreshold) return Math.min(walkCount / badge.walkCountThreshold, 1);
+    if (badge.streakThreshold)
+      return Math.min(currentStreak / badge.streakThreshold, 1);
+    if (badge.walkCountThreshold)
+      return Math.min(walkCount / badge.walkCountThreshold, 1);
     return 0;
   }, [badge, totalKm, currentStreak, walkCount]);
 
@@ -70,15 +168,18 @@ function BadgeItem({ badge, totalKm, currentStreak, walkCount }: {
         </LinearGradient>
       ) : (
         <View style={styles.badgeCircleLocked}>
-          <View style={[styles.badgeProgress, { height: `${progress * 100}%` }]} />
-          <Feather name={badge.icon as any} size={28} color="rgba(59, 47, 138, 0.4)" />
+          <View
+            style={[styles.badgeProgress, { height: `${progress * 100}%` }]}
+          />
+          <Feather
+            name={badge.icon as any}
+            size={28}
+            color="rgba(59, 47, 138, 0.4)"
+          />
         </View>
       )}
-      <ThemedText 
-        style={[
-          styles.badgeName, 
-          !isEarned && styles.badgeNameLocked
-        ]}
+      <ThemedText
+        style={[styles.badgeName, !isEarned && styles.badgeNameLocked]}
         numberOfLines={2}
       >
         {badge.name}

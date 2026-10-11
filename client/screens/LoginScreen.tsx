@@ -73,7 +73,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           <ThemedText type="h1" style={styles.title}>
             Step Ritual
           </ThemedText>
-          <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <ThemedText
+            type="body"
+            style={[styles.subtitle, { color: theme.textSecondary }]}
+          >
             Cammina insieme, cresci insieme
           </ThemedText>
         </View>
@@ -100,7 +103,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           />
 
           {error ? (
-            <ThemedText type="small" style={[styles.error, { color: Colors.light.error }]}>
+            <ThemedText
+              type="small"
+              style={[styles.error, { color: Colors.light.error }]}
+            >
               {error}
             </ThemedText>
           ) : null}
@@ -121,7 +127,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           </ThemedText>
           <Pressable onPress={() => navigation.navigate("Register")}>
             <ThemedText type="link" style={{ color: theme.secondary }}>
-              {" "}Registrati
+              {" "}
+              Registrati
             </ThemedText>
           </Pressable>
         </View>

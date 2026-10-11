@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { StyleSheet, View, ScrollView, RefreshControl, Alert, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -35,7 +42,7 @@ export default function HistoryScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { couple, refreshUser } = useAuth();
   const route = useRoute<HistoryScreenRouteProp>();
-  
+
   const initialRange = route.params?.range || "week";
   const [timeRange, setTimeRange] = useState<TimeRange>(initialRange);
 
@@ -47,12 +54,26 @@ export default function HistoryScreen() {
 
   const dateRange = useMemo(() => getDateRange(timeRange), [timeRange]);
 
-  const { data: statsData, isLoading, refetch } = useQuery<StatsResponse>({
-    queryKey: ["/api/walks/stats", dateRange.start.toISOString(), dateRange.end.toISOString()],
+  const {
+    data: statsData,
+    isLoading,
+    refetch,
+  } = useQuery<StatsResponse>({
+    queryKey: [
+      "/api/walks/stats",
+      dateRange.start.toISOString(),
+      dateRange.end.toISOString(),
+    ],
     queryFn: async () => {
       const url = new URL("/api/walks/stats", window.location.origin);
-      url.searchParams.set("startDate", dateRange.start.toISOString().split("T")[0]);
-      url.searchParams.set("endDate", dateRange.end.toISOString().split("T")[0]);
+      url.searchParams.set(
+        "startDate",
+        dateRange.start.toISOString().split("T")[0],
+      );
+      url.searchParams.set(
+        "endDate",
+        dateRange.end.toISOString().split("T")[0],
+      );
       const response = await fetch(url.toString(), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -83,18 +104,33 @@ export default function HistoryScreen() {
   }, [refetch, refreshUser, refreshing]);
 
   const weeklyStats = useMemo(() => {
-    if (!statsData?.walks) return { ioKm: [0, 0, 0, 0, 0, 0, 0], partnerKm: [0, 0, 0, 0, 0, 0, 0] };
-    return aggregateWeeklyStats(statsData.walks, statsData.userId, statsData.partnerId);
+    if (!statsData?.walks)
+      return { ioKm: [0, 0, 0, 0, 0, 0, 0], partnerKm: [0, 0, 0, 0, 0, 0, 0] };
+    return aggregateWeeklyStats(
+      statsData.walks,
+      statsData.userId,
+      statsData.partnerId,
+    );
   }, [statsData]);
 
   const monthlyStats = useMemo(() => {
-    if (!statsData?.walks) return { ioKm: [0, 0, 0, 0], partnerKm: [0, 0, 0, 0] };
-    return aggregateMonthlyStats(statsData.walks, statsData.userId, statsData.partnerId);
+    if (!statsData?.walks)
+      return { ioKm: [0, 0, 0, 0], partnerKm: [0, 0, 0, 0] };
+    return aggregateMonthlyStats(
+      statsData.walks,
+      statsData.userId,
+      statsData.partnerId,
+    );
   }, [statsData]);
 
   const yearlyStats = useMemo(() => {
-    if (!statsData?.walks) return { ioKm: Array(12).fill(0), partnerKm: Array(12).fill(0) };
-    return aggregateYearlyStats(statsData.walks, statsData.userId, statsData.partnerId);
+    if (!statsData?.walks)
+      return { ioKm: Array(12).fill(0), partnerKm: Array(12).fill(0) };
+    return aggregateYearlyStats(
+      statsData.walks,
+      statsData.userId,
+      statsData.partnerId,
+    );
   }, [statsData]);
 
   const renderChart = () => {

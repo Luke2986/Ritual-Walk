@@ -12,7 +12,9 @@ if (Platform.OS !== "web") {
       return;
     }
 
-    const locations = (data as any)?.locations as Location.LocationObject[] | undefined;
+    const locations = (data as any)?.locations as
+      | Location.LocationObject[]
+      | undefined;
     if (!locations?.length) return;
 
     try {

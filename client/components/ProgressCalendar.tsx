@@ -8,15 +8,41 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 
 LocaleConfig.locales["it"] = {
   monthNames: [
-    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre",
+    "Gennaio",
+    "Febbraio",
+    "Marzo",
+    "Aprile",
+    "Maggio",
+    "Giugno",
+    "Luglio",
+    "Agosto",
+    "Settembre",
+    "Ottobre",
+    "Novembre",
+    "Dicembre",
   ],
   monthNamesShort: [
-    "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-    "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
+    "Gen",
+    "Feb",
+    "Mar",
+    "Apr",
+    "Mag",
+    "Giu",
+    "Lug",
+    "Ago",
+    "Set",
+    "Ott",
+    "Nov",
+    "Dic",
   ],
   dayNames: [
-    "Domenica", "Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato",
+    "Domenica",
+    "Lunedi",
+    "Martedi",
+    "Mercoledi",
+    "Giovedi",
+    "Venerdi",
+    "Sabato",
   ],
   dayNamesShort: ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"],
   today: "Oggi",
@@ -127,18 +153,28 @@ export function ProgressCalendar({
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
           <View style={[styles.legendBar, { backgroundColor: electricCyan }]} />
-          <ThemedText type="small" style={styles.legendText}>Io</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Io
+          </ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBar, { backgroundColor: lavenderPop }]} />
-          <ThemedText type="small" style={styles.legendText}>Partner</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Partner
+          </ThemedText>
         </View>
         <View style={styles.legendItem}>
           <View style={styles.legendBoth}>
-            <View style={[styles.legendBarSmall, { backgroundColor: electricCyan }]} />
-            <View style={[styles.legendBarSmall, { backgroundColor: lavenderPop }]} />
+            <View
+              style={[styles.legendBarSmall, { backgroundColor: electricCyan }]}
+            />
+            <View
+              style={[styles.legendBarSmall, { backgroundColor: lavenderPop }]}
+            />
           </View>
-          <ThemedText type="small" style={styles.legendText}>Insieme</ThemedText>
+          <ThemedText type="small" style={styles.legendText}>
+            Insieme
+          </ThemedText>
         </View>
       </View>
     </Pressable>

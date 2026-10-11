@@ -31,7 +31,7 @@ const calculateDistance = (
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ): number => {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -48,24 +48,21 @@ const calculateDistance = (
 
 const isValidLocation = (
   newLocation: LocationPoint,
-  lastLocation: LocationPoint | null
+  lastLocation: LocationPoint | null,
 ): boolean => {
   if (
     newLocation.accuracy !== null &&
     newLocation.accuracy > GPS_FILTER.maxAccuracy
   ) {
     console.log(
-      `[GPS Filter] Rejected: accuracy ${newLocation.accuracy}m > ${GPS_FILTER.maxAccuracy}m`
+      `[GPS Filter] Rejected: accuracy ${newLocation.accuracy}m > ${GPS_FILTER.maxAccuracy}m`,
     );
     return false;
   }
 
-  if (
-    newLocation.speed !== null &&
-    newLocation.speed > GPS_FILTER.maxSpeed
-  ) {
+  if (newLocation.speed !== null && newLocation.speed > GPS_FILTER.maxSpeed) {
     console.log(
-      `[GPS Filter] Rejected: speed ${newLocation.speed}m/s > ${GPS_FILTER.maxSpeed}m/s`
+      `[GPS Filter] Rejected: speed ${newLocation.speed}m/s > ${GPS_FILTER.maxSpeed}m/s`,
     );
     return false;
   }
@@ -75,12 +72,12 @@ const isValidLocation = (
       lastLocation.latitude,
       lastLocation.longitude,
       newLocation.latitude,
-      newLocation.longitude
+      newLocation.longitude,
     );
 
     if (distance < GPS_FILTER.minDistance) {
       console.log(
-        `[GPS Filter] Rejected: distance ${distance.toFixed(1)}m < ${GPS_FILTER.minDistance}m`
+        `[GPS Filter] Rejected: distance ${distance.toFixed(1)}m < ${GPS_FILTER.minDistance}m`,
       );
       return false;
     }
@@ -90,7 +87,7 @@ const isValidLocation = (
       const impliedSpeed = distance / timeDiff;
       if (impliedSpeed > GPS_FILTER.maxSpeed) {
         console.log(
-          `[GPS Filter] Rejected: implied speed ${impliedSpeed.toFixed(1)}m/s > ${GPS_FILTER.maxSpeed}m/s`
+          `[GPS Filter] Rejected: implied speed ${impliedSpeed.toFixed(1)}m/s > ${GPS_FILTER.maxSpeed}m/s`,
         );
         return false;
       }
@@ -102,7 +99,7 @@ const isValidLocation = (
 
 const smoothLocations = (
   locations: LocationPoint[],
-  windowSize: number
+  windowSize: number,
 ): LocationPoint[] => {
   if (locations.length < windowSize) return locations;
 
@@ -126,58 +123,61 @@ const smoothLocations = (
   return smoothed;
 };
 
-TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: { data: any; error: any }) => {
-  if (error) {
-    console.error("[Background Location] Task error:", error);
-    return;
-  }
-
-  if (data) {
-    const { locations } = data as { locations: Location.LocationObject[] };
-
-    try {
-      const storedData = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
-      const existingLocations: LocationPoint[] = storedData
-        ? JSON.parse(storedData)
-        : [];
-      const lastLocation =
-        existingLocations.length > 0
-          ? existingLocations[existingLocations.length - 1]
-          : null;
-
-      const newValidLocations: LocationPoint[] = [];
-      let currentLast = lastLocation;
-
-      for (const loc of locations) {
-        const newPoint: LocationPoint = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          timestamp: loc.timestamp,
-          accuracy: loc.coords.accuracy,
-          speed: loc.coords.speed,
-        };
-
-        if (isValidLocation(newPoint, currentLast)) {
-          newValidLocations.push(newPoint);
-          currentLast = newPoint;
-        }
-      }
-
-      if (newValidLocations.length > 0) {
-        const updatedLocations = [...existingLocations, ...newValidLocations];
-        await AsyncStorage.setItem(
-          LOCATION_STORAGE_KEY,
-          JSON.stringify(updatedLocations)
-        );
-        console.log(
-          `[Background Location] Added ${newValidLocations.length} valid points`
-        );
-      }
-    } catch (e) {
-      console.error("[Background Location] Storage error:", e);
+TaskManager.defineTask(
+  BACKGROUND_LOCATION_TASK,
+  async ({ data, error }: { data: any; error: any }) => {
+    if (error) {
+      console.error("[Background Location] Task error:", error);
+      return;
     }
-  }
-});
+
+    if (data) {
+      const { locations } = data as { locations: Location.LocationObject[] };
+
+      try {
+        const storedData = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+        const existingLocations: LocationPoint[] = storedData
+          ? JSON.parse(storedData)
+          : [];
+        const lastLocation =
+          existingLocations.length > 0
+            ? existingLocations[existingLocations.length - 1]
+            : null;
+
+        const newValidLocations: LocationPoint[] = [];
+        let currentLast = lastLocation;
+
+        for (const loc of locations) {
+          const newPoint: LocationPoint = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            timestamp: loc.timestamp,
+            accuracy: loc.coords.accuracy,
+            speed: loc.coords.speed,
+          };
+
+          if (isValidLocation(newPoint, currentLast)) {
+            newValidLocations.push(newPoint);
+            currentLast = newPoint;
+          }
+        }
+
+        if (newValidLocations.length > 0) {
+          const updatedLocations = [...existingLocations, ...newValidLocations];
+          await AsyncStorage.setItem(
+            LOCATION_STORAGE_KEY,
+            JSON.stringify(updatedLocations),
+          );
+          console.log(
+            `[Background Location] Added ${newValidLocations.length} valid points`,
+          );
+        }
+      } catch (e) {
+        console.error("[Background Location] Storage error:", e);
+      }
+    }
+  },
+);
 
 export const startBackgroundLocationTracking = async (): Promise<boolean> => {
   try {
@@ -222,7 +222,7 @@ export const stopBackgroundLocationTracking = async (): Promise<
 > => {
   try {
     const isRunning = await TaskManager.isTaskRegisteredAsync(
-      BACKGROUND_LOCATION_TASK
+      BACKGROUND_LOCATION_TASK,
     );
     if (isRunning) {
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -233,13 +233,13 @@ export const stopBackgroundLocationTracking = async (): Promise<
 
     const smoothedLocations = smoothLocations(
       locations,
-      GPS_FILTER.smoothingWindow
+      GPS_FILTER.smoothingWindow,
     );
 
     await AsyncStorage.removeItem(LOCATION_STORAGE_KEY);
 
     console.log(
-      `[Background Location] Stopped. Total points: ${smoothedLocations.length}`
+      `[Background Location] Stopped. Total points: ${smoothedLocations.length}`,
     );
     return smoothedLocations;
   } catch (e) {

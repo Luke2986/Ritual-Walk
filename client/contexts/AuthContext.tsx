@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiRequest, getApiUrl, queryClient } from "@/lib/query-client";
 
@@ -34,7 +40,11 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, nickname: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    nickname: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   createCouple: () => Promise<string>;
   joinCouple: (ritualCode: string) => Promise<void>;
@@ -85,19 +95,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await apiRequest("POST", "/api/auth/login", { email, password });
+    const response = await apiRequest("POST", "/api/auth/login", {
+      email,
+      password,
+    });
     const data = await response.json();
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token }));
+    await AsyncStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ token: data.token }),
+    );
     setUser(data.user);
     setCouple(data.couple);
     setPartner(data.partner);
     queryClient.invalidateQueries();
   };
 
-  const register = async (email: string, password: string, nickname: string) => {
-    const response = await apiRequest("POST", "/api/auth/register", { email, password, nickname });
+  const register = async (
+    email: string,
+    password: string,
+    nickname: string,
+  ) => {
+    const response = await apiRequest("POST", "/api/auth/register", {
+      email,
+      password,
+      nickname,
+    });
     const data = await response.json();
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token }));
+    await AsyncStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ token: data.token }),
+    );
     setUser(data.user);
     setCouple(null);
     setPartner(null);
@@ -123,7 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const joinCouple = async (ritualCode: string) => {
-    const response = await apiRequest("POST", "/api/couple/join", { ritualCode });
+    const response = await apiRequest("POST", "/api/couple/join", {
+      ritualCode,
+    });
     const data = await response.json();
     if (data.error) {
       throw new Error(data.message || data.error);

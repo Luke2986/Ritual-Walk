@@ -61,7 +61,11 @@ export default function WeeklySummarySettingsScreen() {
 
   const updatePrefsMutation = useMutation({
     mutationFn: async (updates: Partial<NotificationPrefs>) => {
-      const response = await apiRequest("PUT", "/api/notification-prefs", updates);
+      const response = await apiRequest(
+        "PUT",
+        "/api/notification-prefs",
+        updates,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -147,7 +151,9 @@ export default function WeeklySummarySettingsScreen() {
             onPress={() => setShowTimePicker(true)}
           >
             <Feather name="clock" size={20} color="#B88BFF" />
-            <ThemedText style={styles.timeText}>{formatTime(selectedTime)}</ThemedText>
+            <ThemedText style={styles.timeText}>
+              {formatTime(selectedTime)}
+            </ThemedText>
           </Pressable>
 
           {showTimePicker ? (

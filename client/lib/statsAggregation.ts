@@ -29,18 +29,26 @@ function getWeekStartEnd(): { start: Date; end: Date } {
   const monday = new Date(today);
   monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
   monday.setHours(0, 0, 0, 0);
-  
+
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
-  
+
   return { start: monday, end: sunday };
 }
 
 function getMonthStartEnd(): { start: Date; end: Date } {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), 1);
-  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+  const end = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
   return { start, end };
 }
 
@@ -51,7 +59,10 @@ function getYearStartEnd(): { start: Date; end: Date } {
   return { start, end };
 }
 
-export function getDateRange(range: "week" | "month" | "year"): { start: Date; end: Date } {
+export function getDateRange(range: "week" | "month" | "year"): {
+  start: Date;
+  end: Date;
+} {
   switch (range) {
     case "week":
       return getWeekStartEnd();
@@ -65,7 +76,7 @@ export function getDateRange(range: "week" | "month" | "year"): { start: Date; e
 export function aggregateWeeklyStats(
   walks: WalkData[],
   userId: string | null,
-  partnerId: string | null
+  partnerId: string | null,
 ): DailyStats {
   const { start } = getWeekStartEnd();
   const ioKm: number[] = [0, 0, 0, 0, 0, 0, 0];
@@ -73,8 +84,10 @@ export function aggregateWeeklyStats(
 
   walks.forEach((walk) => {
     const walkDate = new Date(walk.startedAt);
-    const dayIndex = Math.floor((walkDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const dayIndex = Math.floor(
+      (walkDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (dayIndex >= 0 && dayIndex < 7) {
       if (walk.userId === userId) {
         ioKm[dayIndex] += walk.distanceKm;
@@ -90,7 +103,7 @@ export function aggregateWeeklyStats(
 export function aggregateMonthlyStats(
   walks: WalkData[],
   userId: string | null,
-  partnerId: string | null
+  partnerId: string | null,
 ): DailyStats {
   const { start } = getMonthStartEnd();
   const ioKm: number[] = [0, 0, 0, 0];
@@ -100,7 +113,7 @@ export function aggregateMonthlyStats(
     const walkDate = new Date(walk.startedAt);
     const dayOfMonth = walkDate.getDate();
     const weekIndex = Math.min(Math.floor((dayOfMonth - 1) / 7), 3);
-    
+
     if (walk.userId === userId) {
       ioKm[weekIndex] += walk.distanceKm;
     } else if (walk.userId === partnerId) {
@@ -114,7 +127,7 @@ export function aggregateMonthlyStats(
 export function aggregateYearlyStats(
   walks: WalkData[],
   userId: string | null,
-  partnerId: string | null
+  partnerId: string | null,
 ): DailyStats {
   const ioKm: number[] = Array(12).fill(0);
   const partnerKm: number[] = Array(12).fill(0);
@@ -122,7 +135,7 @@ export function aggregateYearlyStats(
   walks.forEach((walk) => {
     const walkDate = new Date(walk.startedAt);
     const monthIndex = walkDate.getMonth();
-    
+
     if (walk.userId === userId) {
       ioKm[monthIndex] += walk.distanceKm;
     } else if (walk.userId === partnerId) {
@@ -136,17 +149,17 @@ export function aggregateYearlyStats(
 export function buildActivityByDate(
   walks: WalkData[],
   userId: string | null,
-  partnerId: string | null
+  partnerId: string | null,
 ): ActivityByDate {
   const activityMap: ActivityByDate = {};
 
   walks.forEach((walk) => {
     const dateKey = formatDateKey(new Date(walk.startedAt));
-    
+
     if (!activityMap[dateKey]) {
       activityMap[dateKey] = { me: false, partner: false };
     }
-    
+
     if (walk.userId === userId) {
       activityMap[dateKey].me = true;
     } else if (walk.userId === partnerId) {
@@ -157,7 +170,11 @@ export function buildActivityByDate(
   return activityMap;
 }
 
-export function getTotalDistance(stats: DailyStats): { ioTotal: number; partnerTotal: number; together: number } {
+export function getTotalDistance(stats: DailyStats): {
+  ioTotal: number;
+  partnerTotal: number;
+  together: number;
+} {
   const ioTotal = stats.ioKm.reduce((sum, km) => sum + km, 0);
   const partnerTotal = stats.partnerKm.reduce((sum, km) => sum + km, 0);
   return {

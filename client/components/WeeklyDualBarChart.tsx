@@ -46,11 +46,7 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
   const chartWidth = screenWidth - Spacing.lg * 4;
   const barWidth = Math.min(18, (chartWidth - 140) / 14);
 
-  const maxValue = Math.max(
-    ...data.ioKm,
-    ...data.partnerKm,
-    1
-  );
+  const maxValue = Math.max(...data.ioKm, ...data.partnerKm, 1);
   const yAxisMax = Math.ceil(maxValue * 1.2);
 
   return (
@@ -112,7 +108,6 @@ export function WeeklyDualBarChart({ data }: WeeklyDualBarChartProps) {
           </ThemedText>
         </View>
       </View>
-
     </View>
   );
 }

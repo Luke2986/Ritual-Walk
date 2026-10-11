@@ -26,10 +26,10 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
   if (Platform.OS === "web") {
     return null;
   }
-  
+
   if (!db) {
     db = await SQLite.openDatabaseAsync("step_ritual_tracking.db");
-    
+
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS track_points (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +54,7 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
       );
     `);
   }
-  
+
   return db;
 }
 
@@ -70,14 +70,17 @@ export async function persistLocationsBatch(
       heading: number | null;
     };
     timestamp: number;
-  }>
+  }>,
 ): Promise<void> {
   const database = await getDatabase();
   if (!database || locations.length === 0) return;
 
-  const values = locations.map((loc) => 
-    `('${walkId}', ${loc.timestamp}, ${loc.coords.latitude}, ${loc.coords.longitude}, ${loc.coords.altitude ?? "NULL"}, ${loc.coords.accuracy ?? "NULL"}, ${loc.coords.speed ?? "NULL"}, ${loc.coords.heading ?? "NULL"})`
-  ).join(", ");
+  const values = locations
+    .map(
+      (loc) =>
+        `('${walkId}', ${loc.timestamp}, ${loc.coords.latitude}, ${loc.coords.longitude}, ${loc.coords.altitude ?? "NULL"}, ${loc.coords.accuracy ?? "NULL"}, ${loc.coords.speed ?? "NULL"}, ${loc.coords.heading ?? "NULL"})`,
+    )
+    .join(", ");
 
   await database.execAsync(`
     INSERT INTO track_points (walk_id, timestamp, latitude, longitude, altitude, accuracy, speed, heading)
@@ -99,32 +102,48 @@ export async function getTrackPoints(walkId: string): Promise<TrackPoint[]> {
     accuracy: number | null;
     speed: number | null;
     heading: number | null;
-  }>(
-    "SELECT * FROM track_points WHERE walk_id = ? ORDER BY timestamp ASC",
-    [walkId]
-  );
+  }>("SELECT * FROM track_points WHERE walk_id = ? ORDER BY timestamp ASC", [
+    walkId,
+  ]);
 
-  return result.map((row: { id: number; walk_id: string; timestamp: number; latitude: number; longitude: number; altitude: number | null; accuracy: number | null; speed: number | null; heading: number | null }) => ({
-    id: row.id,
-    walkId: row.walk_id,
-    timestamp: row.timestamp,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    altitude: row.altitude,
-    accuracy: row.accuracy,
-    speed: row.speed,
-    heading: row.heading,
-  }));
+  return result.map(
+    (row: {
+      id: number;
+      walk_id: string;
+      timestamp: number;
+      latitude: number;
+      longitude: number;
+      altitude: number | null;
+      accuracy: number | null;
+      speed: number | null;
+      heading: number | null;
+    }) => ({
+      id: row.id,
+      walkId: row.walk_id,
+      timestamp: row.timestamp,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      altitude: row.altitude,
+      accuracy: row.accuracy,
+      speed: row.speed,
+      heading: row.heading,
+    }),
+  );
 }
 
 export async function clearTrackPoints(walkId: string): Promise<void> {
   const database = await getDatabase();
   if (!database) return;
 
-  await database.execAsync(`DELETE FROM track_points WHERE walk_id = '${walkId}'`);
+  await database.execAsync(
+    `DELETE FROM track_points WHERE walk_id = '${walkId}'`,
+  );
 }
 
-export async function setActiveWalk(walkId: string, startTime: number): Promise<void> {
+export async function setActiveWalk(
+  walkId: string,
+  startTime: number,
+): Promise<void> {
   const database = await getDatabase();
   if (!database) return;
 
@@ -155,7 +174,10 @@ export async function getActiveWalk(): Promise<ActiveWalk | null> {
   };
 }
 
-export async function updateActiveWalkPause(isPaused: boolean, pausedTime: number): Promise<void> {
+export async function updateActiveWalkPause(
+  isPaused: boolean,
+  pausedTime: number,
+): Promise<void> {
   const database = await getDatabase();
   if (!database) return;
 
@@ -171,7 +193,9 @@ export async function clearActiveWalk(): Promise<void> {
   await database.execAsync("DELETE FROM active_walk WHERE id = 1");
 }
 
-export async function getLatestTrackPoint(walkId: string): Promise<TrackPoint | null> {
+export async function getLatestTrackPoint(
+  walkId: string,
+): Promise<TrackPoint | null> {
   const database = await getDatabase();
   if (!database) return null;
 
@@ -187,7 +211,7 @@ export async function getLatestTrackPoint(walkId: string): Promise<TrackPoint | 
     heading: number | null;
   }>(
     "SELECT * FROM track_points WHERE walk_id = ? ORDER BY timestamp DESC LIMIT 1",
-    [walkId]
+    [walkId],
   );
 
   if (!result) return null;
@@ -211,7 +235,7 @@ export async function getTrackPointCount(walkId: string): Promise<number> {
 
   const result = await database.getFirstAsync<{ count: number }>(
     "SELECT COUNT(*) as count FROM track_points WHERE walk_id = ?",
-    [walkId]
+    [walkId],
   );
 
   return result?.count ?? 0;

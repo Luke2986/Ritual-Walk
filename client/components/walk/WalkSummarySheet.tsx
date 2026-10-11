@@ -49,64 +49,122 @@ export function WalkSummarySheet({
     >
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onDismiss} />
-        <View 
+        <View
           style={[
-            styles.sheet, 
-            { 
+            styles.sheet,
+            {
               backgroundColor: theme.backgroundDefault,
               paddingBottom: insets.bottom + Spacing.lg,
-            }
+            },
           ]}
         >
           <View style={styles.handle} />
-          
+
           <View style={styles.header}>
-            <View style={[styles.celebrationIcon, { backgroundColor: `${Colors.light.success}20` }]}>
-              <Feather name="check-circle" size={40} color={Colors.light.success} />
+            <View
+              style={[
+                styles.celebrationIcon,
+                { backgroundColor: `${Colors.light.success}20` },
+              ]}
+            >
+              <Feather
+                name="check-circle"
+                size={40}
+                color={Colors.light.success}
+              />
             </View>
             <ThemedText type="h3" style={styles.title}>
               Bel rituale!
             </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.subtitle, { color: theme.textSecondary }]}
+            >
               Ecco il riepilogo della tua camminata
             </ThemedText>
           </View>
 
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-              <Feather name="activity" size={24} color={Colors.light.accentCyan} />
-              <ThemedText style={styles.statValue}>{steps.toLocaleString("it-IT")}</ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Passi</ThemedText>
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: theme.cardBackground },
+              ]}
+            >
+              <Feather
+                name="activity"
+                size={24}
+                color={Colors.light.accentCyan}
+              />
+              <ThemedText style={styles.statValue}>
+                {steps.toLocaleString("it-IT")}
+              </ThemedText>
+              <ThemedText
+                style={[styles.statLabel, { color: theme.textSecondary }]}
+              >
+                Passi
+              </ThemedText>
             </View>
-            
-            <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-              <Feather name="map-pin" size={24} color={Colors.light.secondary} />
-              <ThemedText style={styles.statValue}>{formatDistance(distanceKm)}</ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Distanza</ThemedText>
+
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: theme.cardBackground },
+              ]}
+            >
+              <Feather
+                name="map-pin"
+                size={24}
+                color={Colors.light.secondary}
+              />
+              <ThemedText style={styles.statValue}>
+                {formatDistance(distanceKm)}
+              </ThemedText>
+              <ThemedText
+                style={[styles.statLabel, { color: theme.textSecondary }]}
+              >
+                Distanza
+              </ThemedText>
             </View>
-            
-            <View style={[styles.statCard, { backgroundColor: theme.cardBackground }]}>
-              <Feather name="clock" size={24} color={Colors.light.accentMagenta} />
-              <ThemedText style={styles.statValue}>{durationFormatted}</ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>Tempo</ThemedText>
+
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: theme.cardBackground },
+              ]}
+            >
+              <Feather
+                name="clock"
+                size={24}
+                color={Colors.light.accentMagenta}
+              />
+              <ThemedText style={styles.statValue}>
+                {durationFormatted}
+              </ThemedText>
+              <ThemedText
+                style={[styles.statLabel, { color: theme.textSecondary }]}
+              >
+                Tempo
+              </ThemedText>
             </View>
           </View>
 
           <View style={styles.actions}>
-            <NeonButton 
-              onPress={handleConfirm} 
-              size="large" 
+            <NeonButton
+              onPress={handleConfirm}
+              size="large"
               style={styles.confirmButton}
               testID="button-save-walk"
             >
               Salva nel Diario
             </NeonButton>
-            <Pressable 
-              onPress={onDismiss} 
+            <Pressable
+              onPress={onDismiss}
               style={styles.dismissButton}
               testID="button-dismiss-summary"
             >
-              <ThemedText style={[styles.dismissText, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.dismissText, { color: theme.textSecondary }]}
+              >
                 Annulla senza salvare
               </ThemedText>
             </Pressable>

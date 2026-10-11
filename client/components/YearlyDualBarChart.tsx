@@ -18,7 +18,20 @@ interface YearlyDualBarChartProps {
   data: YearlyData;
 }
 
-const monthLabels = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+const monthLabels = [
+  "Gen",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mag",
+  "Giu",
+  "Lug",
+  "Ago",
+  "Set",
+  "Ott",
+  "Nov",
+  "Dic",
+];
 
 export function YearlyDualBarChart({ data }: YearlyDualBarChartProps) {
   const totalIo = data.ioKm.reduce((sum, km) => sum + km, 0);
