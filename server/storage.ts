@@ -3,15 +3,23 @@ import {
   couples,
   walks,
   notificationPrefs,
+  userBadges,
+  authAttempts,
+  passwordResets,
   type User,
   type InsertUser,
   type Couple,
   type Walk,
   type NotificationPrefs,
+  type PasswordReset,
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, gt, gte, lte, inArray, count } from "drizzle-orm";
-import { applyWalkToStreak, lastWalkLocalDateOf } from "./streak";
+import {
+  applyWalkToStreak,
+  lastWalkLocalDateOf,
+  streakFromLocalDates,
+} from "./streak";
 
 export type JoinResult =
   | { ok: true }
@@ -38,6 +46,47 @@ export interface EndWalkData {
 }
 
 const completedWalk = and(eq(walks.isActive, false), gt(walks.distanceKm, 0));
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Totals and streak are derived from the couple's walks, so they can be rebuilt after a delete.
+async function rebuildCoupleStats(tx: Tx, coupleId: string) {
+  const [couple] = await tx
+    .select({ id: couples.id })
+    .from(couples)
+    .where(eq(couples.id, coupleId))
+    .for("update");
+  if (!couple) return;
+
+  const rows = await tx
+    .select({
+      distanceKm: walks.distanceKm,
+      localDate: walks.localDate,
+      startedAt: walks.startedAt,
+      endedAt: walks.endedAt,
+    })
+    .from(walks)
+    .where(and(eq(walks.coupleId, coupleId), completedWalk));
+
+  const streak = streakFromLocalDates(
+    rows.map((w) => w.localDate ?? w.startedAt.toISOString().slice(0, 10)),
+  );
+  const lastWalkDate = rows.reduce<Date | null>((latest, w) => {
+    const at = w.endedAt ?? w.startedAt;
+    return !latest || at > latest ? at : latest;
+  }, null);
+
+  await tx
+    .update(couples)
+    .set({
+      totalKm: rows.reduce((sum, w) => sum + w.distanceKm, 0),
+      currentStreak: streak.currentStreak,
+      bestStreak: sql`greatest(${couples.bestStreak}, ${streak.currentStreak})`,
+      lastWalkLocalDate: streak.lastLocalDate,
+      lastWalkDate,
+    })
+    .where(eq(couples.id, coupleId));
+}
 
 export class DatabaseStorage {
   async getUser(id: string): Promise<User | undefined> {
@@ -283,6 +332,7 @@ export class DatabaseStorage {
           pathJson: data.pathJson,
           isActive: false,
           endedAt: new Date(),
+          localDate: data.localDate,
         })
         .where(
           and(
@@ -335,6 +385,79 @@ export class DatabaseStorage {
     });
   }
 
+  async deleteWalk(walkId: string, userId: string): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const [walk] = await tx
+        .delete(walks)
+        .where(
+          and(
+            eq(walks.id, walkId),
+            eq(walks.userId, userId),
+            eq(walks.isActive, false),
+          ),
+        )
+        .returning({ coupleId: walks.coupleId });
+      if (!walk) return false;
+      if (walk.coupleId) await rebuildCoupleStats(tx, walk.coupleId);
+      return true;
+    });
+  }
+
+  async deleteUserAccount(userId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [user] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .for("update");
+      if (!user) return;
+
+      if (user.coupleId) {
+        const coupleId = user.coupleId;
+        const members = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.coupleId, coupleId));
+        const partnerIds = members
+          .map((m) => m.id)
+          .filter((id) => id !== userId);
+
+        await tx
+          .update(couples)
+          .set({
+            status: "archived",
+            archivedAt: new Date(),
+            archivedByUserId: userId,
+            ritualCode: null,
+          })
+          .where(
+            and(eq(couples.id, coupleId), sql`${couples.status} <> 'archived'`),
+          );
+        await tx
+          .update(users)
+          .set({ coupleId: null })
+          .where(eq(users.coupleId, coupleId));
+        if (partnerIds.length > 0) {
+          await tx
+            .update(notificationPrefs)
+            .set({ partnerAlertsEnabled: false })
+            .where(inArray(notificationPrefs.userId, partnerIds));
+        }
+      }
+
+      await tx.delete(walks).where(eq(walks.userId, userId));
+      await tx
+        .delete(notificationPrefs)
+        .where(eq(notificationPrefs.userId, userId));
+      await tx.delete(userBadges).where(eq(userBadges.userId, userId));
+      await tx.delete(passwordResets).where(eq(passwordResets.userId, userId));
+      await tx
+        .delete(authAttempts)
+        .where(eq(authAttempts.key, `email:${user.email.toLowerCase()}`));
+      await tx.delete(users).where(eq(users.id, userId));
+    });
+  }
+
   async getRecentWalksByCouple(coupleId: string, limit: number) {
     return db
       .select({
@@ -377,6 +500,106 @@ export class DatabaseStorage {
       .from(walks)
       .where(and(eq(walks.coupleId, coupleId), completedWalk));
     return row?.value ?? 0;
+  }
+
+  // Counts live in the database so limits hold across serverless instances.
+  async getAuthAttempts(
+    key: string,
+    windowSeconds: number,
+  ): Promise<{ count: number; retryAfterSeconds: number }> {
+    const [row] = await db
+      .select({
+        count: authAttempts.count,
+        retryAfterSeconds: sql<number>`extract(epoch from (${authAttempts.windowStart} + make_interval(secs => ${windowSeconds}) - now()))::float8`,
+      })
+      .from(authAttempts)
+      .where(
+        and(
+          eq(authAttempts.key, key),
+          sql`${authAttempts.windowStart} > now() - make_interval(secs => ${windowSeconds})`,
+        ),
+      );
+    return row ?? { count: 0, retryAfterSeconds: 0 };
+  }
+
+  async recordAuthAttempt(key: string, windowSeconds: number): Promise<void> {
+    const expired = sql`${authAttempts.windowStart} <= now() - make_interval(secs => ${windowSeconds})`;
+    await db
+      .insert(authAttempts)
+      .values({ key, count: 1 })
+      .onConflictDoUpdate({
+        target: authAttempts.key,
+        set: {
+          count: sql`case when ${expired} then 1 else ${authAttempts.count} + 1 end`,
+          windowStart: sql`case when ${expired} then now() else ${authAttempts.windowStart} end`,
+        },
+      });
+    await db
+      .delete(authAttempts)
+      .where(sql`${authAttempts.windowStart} < now() - interval '1 day'`);
+  }
+
+  async clearAuthAttempts(key: string): Promise<void> {
+    await db.delete(authAttempts).where(eq(authAttempts.key, key));
+  }
+
+  async savePasswordReset(
+    userId: string,
+    codeHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await db
+      .insert(passwordResets)
+      .values({ userId, codeHash, expiresAt, attempts: 0 })
+      .onConflictDoUpdate({
+        target: passwordResets.userId,
+        set: { codeHash, expiresAt, attempts: 0 },
+      });
+  }
+
+  // Uses up one guess; returns nothing once the code's guesses are spent.
+  async consumePasswordResetAttempt(
+    userId: string,
+    maxAttempts: number,
+  ): Promise<PasswordReset | undefined> {
+    const [reset] = await db
+      .update(passwordResets)
+      .set({ attempts: sql`${passwordResets.attempts} + 1` })
+      .where(
+        and(
+          eq(passwordResets.userId, userId),
+          sql`${passwordResets.attempts} < ${maxAttempts}`,
+        ),
+      )
+      .returning();
+    return reset;
+  }
+
+  async completePasswordReset(
+    userId: string,
+    passwordHash: string,
+  ): Promise<User | undefined> {
+    return db.transaction(async (tx) => {
+      await tx.delete(passwordResets).where(eq(passwordResets.userId, userId));
+      const [user] = await tx
+        .update(users)
+        .set({ password: passwordHash, passwordChangedAt: new Date() })
+        .where(eq(users.id, userId))
+        .returning();
+      return user;
+    });
+  }
+
+  async clearPushToken(userId: string, pushToken: string): Promise<void> {
+    await db
+      .update(notificationPrefs)
+      .set({ pushToken: null })
+      .where(
+        and(
+          eq(notificationPrefs.userId, userId),
+          eq(notificationPrefs.pushToken, pushToken),
+        ),
+      );
   }
 
   async getNotificationPrefs(

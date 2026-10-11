@@ -1,11 +1,19 @@
-import React from "react";
-import { StyleSheet, View, ScrollView } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from "react-native";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import { RouteProp } from "@react-navigation/native";
+import { RouteProp, useNavigation } from "@react-navigation/native";
 
 import {
   MapViewCompat,
@@ -18,6 +26,9 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, Colors, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/EmptyState";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/query-client";
+import { confirmDestructive } from "@/lib/confirm";
 
 type WalkDetailScreenProps = {
   route: RouteProp<{ WalkDetail: { walkId: string } }, "WalkDetail">;
@@ -25,6 +36,7 @@ type WalkDetailScreenProps = {
 
 interface WalkDetail {
   id: string;
+  userId: string;
   distanceKm: number;
   durationSeconds: number;
   startedAt: string;
@@ -36,8 +48,12 @@ interface WalkDetail {
 export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
   const { walkId } = route.params;
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const headerHeight = useHeaderHeight();
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
+  const { user, refreshUser } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data: walk,
@@ -84,6 +100,33 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
     };
   };
 
+  const handleDelete = async () => {
+    const confirmed = await confirmDestructive(
+      "Eliminare la camminata?",
+      "I km verranno tolti dal totale di coppia e lo streak verrà ricalcolato.",
+      "Elimina",
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await apiRequest("DELETE", `/api/walks/${walkId}`);
+    } catch (error) {
+      setIsDeleting(false);
+      const message =
+        error instanceof Error ? error.message : "Eliminazione non riuscita";
+      if (Platform.OS === "web") window.alert(message);
+      else Alert.alert("Errore", message);
+      return;
+    }
+    navigation.goBack();
+    queryClient.removeQueries({ queryKey: ["/api/walks", walkId] });
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/walks/count"] });
+    refreshUser().catch(() => {});
+  };
+
   if (isError) {
     return (
       <LinearGradient
@@ -121,7 +164,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.xl,
+            paddingBottom: tabBarHeight + Spacing.xl,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -209,6 +252,26 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
             />
           </View>
         </View>
+
+        {walk.userId === user?.id ? (
+          <Pressable
+            style={[styles.deleteButton, isDeleting && styles.deleteDisabled]}
+            onPress={handleDelete}
+            disabled={isDeleting}
+            testID="button-delete-walk"
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={Colors.light.error} />
+            ) : (
+              <>
+                <Feather name="trash-2" size={18} color={Colors.light.error} />
+                <ThemedText style={styles.deleteText}>
+                  Elimina camminata
+                </ThemedText>
+              </>
+            )}
+          </Pressable>
+        ) : null}
       </ScrollView>
     </LinearGradient>
   );
@@ -249,5 +312,23 @@ const styles = StyleSheet.create({
   statsGrid: {},
   statsRow: {
     flexDirection: "row",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing["2xl"],
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: "rgba(255, 71, 87, 0.4)",
+  },
+  deleteDisabled: {
+    opacity: 0.6,
+  },
+  deleteText: {
+    color: Colors.light.error,
+    fontWeight: "600",
   },
 });

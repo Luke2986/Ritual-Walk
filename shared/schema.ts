@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { isValidTimeZone } from "./quietHours";
 
 // Couples table - represents a linked couple with shared stats
 // Status: pending (invite created), active (partner joined), archived (unpaired)
@@ -44,6 +45,8 @@ export const users = pgTable("users", {
   nickname: varchar("nickname", { length: 50 }).notNull(),
   avatarUrl: text("avatar_url"),
   coupleId: varchar("couple_id").references(() => couples.id),
+  // Login tokens issued before this moment are rejected (set on password reset).
+  passwordChangedAt: timestamp("password_changed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -64,6 +67,8 @@ export const walks = pgTable("walks", {
   isActive: boolean("is_active").notNull().default(false),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   endedAt: timestamp("ended_at"),
+  // Calendar day (YYYY-MM-DD) in the walker's timezone, used to rebuild the streak.
+  localDate: varchar("local_date", { length: 10 }),
 });
 
 // Badges table - achievement badges
@@ -130,7 +135,25 @@ export const notificationPrefs = pgTable("notification_prefs", {
   quietStart: varchar("quiet_start", { length: 5 }).notNull().default("22:00"),
   quietEnd: varchar("quiet_end", { length: 5 }).notNull().default("08:00"),
   pushToken: text("push_token"),
+  timeZone: varchar("time_zone", { length: 64 }),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Failed logins and reset-code requests per key ("ip:..." or "email:...") in a fixed window.
+export const authAttempts = pgTable("auth_attempts", {
+  key: varchar("key", { length: 320 }).primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStart: timestamp("window_start").defaultNow().notNull(),
+});
+
+// One pending password-reset code per user, stored hashed.
+export const passwordResets = pgTable("password_resets", {
+  userId: varchar("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
 });
 
 // Relations
@@ -228,6 +251,7 @@ export type Walk = typeof walks.$inferSelect;
 export type Badge = typeof badges.$inferSelect;
 export type UserBadge = typeof userBadges.$inferSelect;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
+export type PasswordReset = typeof passwordResets.$inferSelect;
 
 // Auth schemas
 const emailField = z.string().trim().toLowerCase().email("Email non valida");
@@ -245,6 +269,27 @@ export const registerSchema = z.object({
     .trim()
     .min(2, "Il nickname deve avere almeno 2 caratteri")
     .max(50),
+});
+
+const passwordField = z
+  .string()
+  .min(6, "La password deve avere almeno 6 caratteri");
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Inserisci la password"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: emailField,
+});
+
+export const resetPasswordSchema = z.object({
+  email: emailField,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Il codice è di 6 cifre"),
+  password: passwordField,
 });
 
 export const joinCoupleSchema = z.object({
@@ -310,5 +355,10 @@ export const notificationPrefsUpdateSchema = z
     quietStart: timeField,
     quietEnd: timeField,
     pushToken: z.string().max(500).nullable(),
+    timeZone: z
+      .string()
+      .max(64)
+      .refine(isValidTimeZone, "Fuso orario non valido")
+      .nullable(),
   })
   .partial();

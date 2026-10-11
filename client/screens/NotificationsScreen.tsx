@@ -10,7 +10,7 @@ import {
   Linking,
   RefreshControl,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -25,6 +25,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
 import type { NotificationPrefs } from "@/lib/notifications";
+import { isPushSupported } from "@/lib/pushNotifications";
+import { useAuth } from "@/contexts/AuthContext";
 import type { AccountStackParamList } from "@/navigation/AccountStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<AccountStackParamList>;
@@ -118,10 +120,11 @@ function CategoryRow({
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation<NavigationProp>();
   const queryClient = useQueryClient();
+  const { partner } = useAuth();
 
   const [osPermission, setOsPermission] = useState<
     "granted" | "denied" | "undetermined"
@@ -267,7 +270,7 @@ export default function NotificationsScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing["2xl"],
+            paddingBottom: tabBarHeight + Spacing["2xl"],
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -349,10 +352,14 @@ export default function NotificationsScreen() {
           <CategoryRow
             icon="users"
             title="Avvisi partner"
-            description="Presto disponibile"
-            enabled={false}
-            onToggle={() => {}}
-            disabled
+            description={
+              isPushSupported
+                ? `Quando ${partner?.nickname ?? "il partner"} finisce una camminata`
+                : "Non disponibile in questa versione dell'app"
+            }
+            enabled={prefs?.partnerAlertsEnabled ?? true}
+            onToggle={(v) => handleCategoryToggle("partnerAlertsEnabled", v)}
+            disabled={!masterEnabled || !isPushSupported}
           />
 
           <View style={styles.divider} />

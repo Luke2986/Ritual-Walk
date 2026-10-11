@@ -67,6 +67,12 @@ interface AuthContextType {
     nickname: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
+  resetPassword: (
+    email: string,
+    code: string,
+    password: string,
+  ) => Promise<void>;
   createCouple: () => Promise<string>;
   joinCouple: (ritualCode: string) => Promise<void>;
   unpairCouple: () => Promise<void>;
@@ -177,6 +183,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries();
   };
 
+  const resetPassword = async (
+    email: string,
+    code: string,
+    password: string,
+  ) => {
+    const response = await apiRequest("POST", "/api/auth/reset-password", {
+      email,
+      code,
+      password,
+    });
+    const { token, ...next } = await response.json();
+    await saveSession(next, token);
+    queryClient.invalidateQueries();
+  };
+
+  // Stop partner alerts on this device before forgetting the session.
+  const logout = async () => {
+    await apiRequest("PUT", "/api/notification-prefs", {
+      pushToken: null,
+    }).catch(() => {});
+    await clearAuth();
+  };
+
+  const deleteAccount = async (password: string) => {
+    await apiRequest("POST", "/api/auth/delete-account", { password });
+    await clearAuth();
+  };
+
   const createCouple = async (): Promise<string> => {
     const response = await apiRequest("POST", "/api/couple/generate");
     const data = await response.json();
@@ -219,7 +253,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!session?.user,
         login,
         register,
-        logout: clearAuth,
+        logout,
+        deleteAccount,
+        resetPassword,
         createCouple,
         joinCouple,
         unpairCouple,

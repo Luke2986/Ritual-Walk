@@ -80,6 +80,8 @@ function setupErrorHandler(app: Express) {
 
 export function createApp(): Express {
   const app = express();
+  // Vercel, Render, Railway and Fly put the client IP in X-Forwarded-For; used by login limits.
+  app.set("trust proxy", 1);
 
   setupCors(app);
   app.use(express.json({ limit: "1mb" }));

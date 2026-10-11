@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { isInQuietHours } from "@shared/quietHours";
 
 export interface NotificationPrefs {
   notificationsEnabled: boolean;
@@ -15,6 +16,8 @@ export interface NotificationPrefs {
   quietHoursEnabled: boolean;
   quietStart: string;
   quietEnd: string;
+  pushToken: string | null;
+  timeZone: string | null;
 }
 
 const CHANNEL_ID = "reminders";
@@ -29,19 +32,6 @@ if (Platform.OS !== "web") {
       shouldSetBadge: false,
     }),
   });
-}
-
-function toMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export function isInQuietHours(time: string, start: string, end: string) {
-  const t = toMinutes(time);
-  const s = toMinutes(start);
-  const e = toMinutes(end);
-  if (s === e) return false;
-  return s < e ? t >= s && t < e : t >= s || t < e;
 }
 
 // Prefs use 1 = Monday … 7 = Sunday; expo-notifications uses 1 = Sunday … 7 = Saturday.

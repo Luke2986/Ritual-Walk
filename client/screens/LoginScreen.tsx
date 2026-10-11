@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ThemedText } from "@/components/ThemedText";
@@ -27,6 +28,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const { data: features } = useQuery<{ passwordReset: boolean }>({
+    queryKey: ["/api/features"],
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -102,6 +107,17 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             secureTextEntry
           />
 
+          {features?.passwordReset ? (
+            <Pressable
+              onPress={() => navigation.navigate("ForgotPassword")}
+              style={styles.forgotLink}
+            >
+              <ThemedText type="small" style={{ color: theme.secondary }}>
+                Password dimenticata?
+              </ThemedText>
+            </Pressable>
+          ) : null}
+
           {error ? (
             <ThemedText
               type="small"
@@ -165,6 +181,10 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  forgotLink: {
+    alignSelf: "flex-end",
+    marginBottom: Spacing.lg,
   },
   error: {
     marginBottom: Spacing.lg,

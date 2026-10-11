@@ -688,6 +688,13 @@ export default function AccountScreen() {
             onPress={handleLogout}
             destructive
           />
+          <View style={styles.settingsDivider} />
+          <SettingsRow
+            icon="trash-2"
+            label="Elimina account"
+            onPress={() => navigation.navigate("DeleteAccount")}
+            destructive
+          />
         </View>
 
         {/* SEZIONE 4: AREA PERICOLOSA - Only show when actively paired */}

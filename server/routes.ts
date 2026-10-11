@@ -1,12 +1,18 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { randomInt } from "node:crypto";
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 import { lastWalkLocalDateOf } from "./streak";
+import { isMailConfigured, sendPasswordResetEmail } from "./mailer";
+import { sendExpoPush } from "./push";
+import { isInQuietHours, timeInZone } from "../shared/quietHours";
 import {
   registerSchema,
   loginSchema,
+  deleteAccountSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   joinCoupleSchema,
   endWalkSchema,
   statsQuerySchema,
@@ -20,16 +26,32 @@ const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_STATS_RANGE_MS = 400 * 24 * 60 * 60 * 1000;
 const RITUAL_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+const ATTEMPT_WINDOW_SECONDS = 15 * 60;
+const LOGIN_FAILURES_PER_EMAIL = 10;
+const LOGIN_FAILURES_PER_IP = 30;
+const RESET_REQUESTS_PER_EMAIL = 3;
+const RESET_REQUESTS_PER_IP = 10;
+const RESET_FAILURES_PER_IP = 20;
+const RESET_CODE_TTL_MINUTES = 15;
+const RESET_CODE_MAX_GUESSES = 5;
+
+// Compared against when the email is unknown, so both cases take a bcrypt check.
+const DUMMY_PASSWORD_HASH =
+  "$2b$10$xbVZpmnkYw38UVmITOD1ZeQEHoqH2/p35nYhRENajF5ry/g5zAD7.";
+
 interface AuthRequest extends Request {
-  userId?: string;
+  user?: User;
 }
 
 type Handler = (req: AuthRequest, res: Response) => Promise<unknown>;
 
 // Express 4 does not forward rejected promises to the error handler.
+// A handler used as middleware returns "next" to continue the chain.
 const handle =
   (fn: Handler) => (req: AuthRequest, res: Response, next: NextFunction) => {
-    fn(req, res).catch(next);
+    fn(req, res).then((result) => {
+      if (result === "next") next();
+    }, next);
   };
 
 function generateRitualCode(): string {
@@ -93,6 +115,8 @@ function serializePrefs(prefs: NotificationPrefs) {
     quietHoursEnabled: prefs.quietHoursEnabled,
     quietStart: prefs.quietStart,
     quietEnd: prefs.quietEnd,
+    pushToken: prefs.pushToken,
+    timeZone: prefs.timeZone,
   };
 }
 
@@ -110,6 +134,8 @@ const DEFAULT_PREFS = {
   quietHoursEnabled: false,
   quietStart: "22:00",
   quietEnd: "08:00",
+  pushToken: null,
+  timeZone: null,
 };
 
 async function buildSession(user: User) {
@@ -151,34 +177,96 @@ export function registerRoutes(app: Express): void {
   const signToken = (userId: string) =>
     jwt.sign({ userId }, jwtSecret, { expiresIn: "30d" });
 
-  function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  const resetCodeHash = (userId: string, code: string) =>
+    createHmac("sha256", jwtSecret).update(`${userId}:${code}`).digest();
+
+  const authMiddleware = handle(async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Token non fornito" });
     }
 
+    let payload: jwt.JwtPayload;
     try {
       const decoded = jwt.verify(authHeader.slice(7), jwtSecret);
       if (typeof decoded === "string" || typeof decoded.userId !== "string") {
         throw new Error("Invalid token payload");
       }
-      req.userId = decoded.userId;
-      next();
+      payload = decoded;
     } catch {
       return res.status(401).json({ error: "Token non valido" });
     }
+
+    const user = await storage.getUser(payload.userId);
+    // A password reset logs out every session created before it.
+    const revoked =
+      !!user?.passwordChangedAt &&
+      (payload.iat ?? 0) < Math.floor(user.passwordChangedAt.getTime() / 1000);
+    if (!user || revoked) {
+      return res.status(401).json({ error: "Sessione scaduta" });
+    }
+    req.user = user;
+    return "next";
+  });
+
+  const clientIp = (req: Request) => req.ip ?? "unknown";
+
+  async function rejectIfTooManyAttempts(
+    res: Response,
+    limits: [key: string, max: number][],
+  ): Promise<boolean> {
+    for (const [key, max] of limits) {
+      const { count, retryAfterSeconds } = await storage.getAuthAttempts(
+        key,
+        ATTEMPT_WINDOW_SECONDS,
+      );
+      if (count >= max) {
+        const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+        res.status(429).json({
+          error: "TOO_MANY_ATTEMPTS",
+          message: `Troppi tentativi. Riprova tra ${minutes} ${minutes === 1 ? "minuto" : "minuti"}.`,
+        });
+        return true;
+      }
+    }
+    return false;
   }
 
-  async function requireUser(
-    req: AuthRequest,
-    res: Response,
-  ): Promise<User | null> {
-    const user = await storage.getUser(req.userId!);
-    if (!user) {
-      res.status(401).json({ error: "Utente non trovato" });
-      return null;
+  const recordAttempts = (keys: string[]) =>
+    Promise.all(
+      keys.map((key) => storage.recordAuthAttempt(key, ATTEMPT_WINDOW_SECONDS)),
+    );
+
+  async function notifyPartnerOfWalk(walker: User, distanceKm: number) {
+    if (!walker.coupleId || distanceKm <= 0) return;
+    const partner = (await storage.getCoupleUsers(walker.coupleId)).find(
+      (u) => u.id !== walker.id,
+    );
+    const prefs = partner && (await storage.getNotificationPrefs(partner.id));
+    if (
+      !partner ||
+      !prefs?.pushToken ||
+      !prefs.notificationsEnabled ||
+      !prefs.partnerAlertsEnabled
+    ) {
+      return;
     }
-    return user;
+    if (prefs.quietHoursEnabled) {
+      // Without the partner's time zone we can't tell, so stay quiet.
+      if (!prefs.timeZone) return;
+      const localTime = timeInZone(new Date(), prefs.timeZone);
+      if (isInQuietHours(localTime, prefs.quietStart, prefs.quietEnd)) return;
+    }
+
+    const km = distanceKm.toLocaleString("it-IT", { maximumFractionDigits: 1 });
+    const result = await sendExpoPush(
+      prefs.pushToken,
+      "Step Ritual",
+      `${walker.nickname} ha appena camminato ${km} km. Tocca a te?`,
+    );
+    if (result === "unregistered") {
+      await storage.clearPushToken(partner.id, prefs.pushToken);
+    }
   }
 
   app.get("/api/health", (_req, res) => {
@@ -217,12 +305,28 @@ export function registerRoutes(app: Express): void {
     "/api/auth/login",
     handle(async (req, res) => {
       const data = loginSchema.parse(req.body);
+      const emailKey = `email:${data.email}`;
+      const ipKey = `ip:${clientIp(req)}`;
+      if (
+        await rejectIfTooManyAttempts(res, [
+          [emailKey, LOGIN_FAILURES_PER_EMAIL],
+          [ipKey, LOGIN_FAILURES_PER_IP],
+        ])
+      ) {
+        return;
+      }
 
       const user = await storage.getUserByEmail(data.email);
-      if (!user || !(await bcrypt.compare(data.password, user.password))) {
+      const passwordOk = await bcrypt.compare(
+        data.password,
+        user?.password ?? DUMMY_PASSWORD_HASH,
+      );
+      if (!user || !passwordOk) {
+        await recordAttempts([emailKey, ipKey]);
         return res.status(401).json({ error: "Email o password non corretti" });
       }
 
+      await storage.clearAuthAttempts(emailKey);
       res.json({ token: signToken(user.id), ...(await buildSession(user)) });
     }),
   );
@@ -231,9 +335,134 @@ export function registerRoutes(app: Express): void {
     "/api/auth/me",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       res.json(await buildSession(user));
+    }),
+  );
+
+  app.get("/api/features", (_req, res) => {
+    res.json({ passwordReset: isMailConfigured() });
+  });
+
+  app.post(
+    "/api/auth/forgot-password",
+    handle(async (req, res) => {
+      if (!isMailConfigured()) {
+        return res.status(503).json({
+          error: "RESET_UNAVAILABLE",
+          message: "Il recupero password non è attivo su questo server",
+        });
+      }
+      const { email } = forgotPasswordSchema.parse(req.body);
+      const emailKey = `reset-email:${email}`;
+      const ipKey = `reset-ip:${clientIp(req)}`;
+      if (
+        await rejectIfTooManyAttempts(res, [
+          [emailKey, RESET_REQUESTS_PER_EMAIL],
+          [ipKey, RESET_REQUESTS_PER_IP],
+        ])
+      ) {
+        return;
+      }
+      await recordAttempts([emailKey, ipKey]);
+
+      const user = await storage.getUserByEmail(email);
+      if (user) {
+        const code = String(randomInt(1_000_000)).padStart(6, "0");
+        await storage.savePasswordReset(
+          user.id,
+          resetCodeHash(user.id, code).toString("hex"),
+          new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000),
+        );
+        try {
+          await sendPasswordResetEmail(
+            user.email,
+            code,
+            RESET_CODE_TTL_MINUTES,
+          );
+        } catch (error) {
+          console.error("Could not send password reset email:", error);
+          return res.status(502).json({
+            error: "EMAIL_FAILED",
+            message: "Invio dell'email non riuscito, riprova più tardi",
+          });
+        }
+      }
+
+      // Same answer whether or not the email has an account.
+      res.json({ ok: true });
+    }),
+  );
+
+  app.post(
+    "/api/auth/reset-password",
+    handle(async (req, res) => {
+      const data = resetPasswordSchema.parse(req.body);
+      const ipKey = `reset-fail-ip:${clientIp(req)}`;
+      if (
+        await rejectIfTooManyAttempts(res, [[ipKey, RESET_FAILURES_PER_IP]])
+      ) {
+        return;
+      }
+
+      const user = await storage.getUserByEmail(data.email);
+      const reset =
+        user &&
+        (await storage.consumePasswordResetAttempt(
+          user.id,
+          RESET_CODE_MAX_GUESSES,
+        ));
+      const codeOk =
+        !!user &&
+        !!reset &&
+        reset.expiresAt > new Date() &&
+        timingSafeEqual(
+          Buffer.from(reset.codeHash, "hex"),
+          resetCodeHash(user.id, data.code),
+        );
+      if (!user || !codeOk) {
+        await recordAttempts([ipKey]);
+        return res.status(400).json({
+          error: "INVALID_CODE",
+          message: "Codice non valido o scaduto",
+        });
+      }
+
+      const updated = (await storage.completePasswordReset(
+        user.id,
+        await bcrypt.hash(data.password, 10),
+      ))!;
+      await storage.clearAuthAttempts(`email:${updated.email.toLowerCase()}`);
+      res.json({
+        token: signToken(updated.id),
+        ...(await buildSession(updated)),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/auth/delete-account",
+    authMiddleware,
+    handle(async (req, res) => {
+      const { password } = deleteAccountSchema.parse(req.body);
+      const user = req.user!;
+      const emailKey = `email:${user.email.toLowerCase()}`;
+      if (
+        await rejectIfTooManyAttempts(res, [
+          [emailKey, LOGIN_FAILURES_PER_EMAIL],
+        ])
+      ) {
+        return;
+      }
+      if (!(await bcrypt.compare(password, user.password))) {
+        await recordAttempts([emailKey]);
+        return res
+          .status(403)
+          .json({ error: "WRONG_PASSWORD", message: "Password non corretta" });
+      }
+
+      await storage.deleteUserAccount(user.id);
+      res.json({ ok: true });
     }),
   );
 
@@ -242,8 +471,7 @@ export function registerRoutes(app: Express): void {
     "/api/couple/generate",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       if (user.coupleId) {
         const existing = await storage.getCouple(user.coupleId);
@@ -351,8 +579,7 @@ export function registerRoutes(app: Express): void {
     "/api/couple/regenerate",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       const couple = await getOwnPendingInvite(user, res);
       if (!couple) return;
 
@@ -377,8 +604,7 @@ export function registerRoutes(app: Express): void {
     "/api/couple/cancel-invite",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       const couple = await getOwnPendingInvite(user, res);
       if (!couple) return;
 
@@ -407,8 +633,7 @@ export function registerRoutes(app: Express): void {
     authMiddleware,
     handle(async (req, res) => {
       const { ritualCode } = joinCoupleSchema.parse(req.body);
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       const couple = await storage.getCoupleByRitualCode(ritualCode);
       if (!couple) {
@@ -443,8 +668,7 @@ export function registerRoutes(app: Express): void {
     "/api/couple/unpair",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       if (!user.coupleId) {
         return res.status(409).json({
@@ -473,8 +697,7 @@ export function registerRoutes(app: Express): void {
     "/api/walks/start",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       const walk = await storage.startWalk(user.id, user.coupleId);
       res.json({ walk });
     }),
@@ -485,8 +708,7 @@ export function registerRoutes(app: Express): void {
     authMiddleware,
     handle(async (req, res) => {
       const data = endWalkSchema.parse(req.body);
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       const result = await storage.endWalk(
         req.params.walkId,
@@ -507,6 +729,10 @@ export function registerRoutes(app: Express): void {
         return res.status(status).json({ error: result.code, message });
       }
 
+      // Awaited because serverless hosts may stop work after the response.
+      await notifyPartnerOfWalk(user, data.distanceKm).catch((error) =>
+        console.warn("Partner alert failed:", error),
+      );
       res.json({ walk: result.walk });
     }),
   );
@@ -515,7 +741,7 @@ export function registerRoutes(app: Express): void {
     "/api/walks/:walkId/discard",
     authMiddleware,
     handle(async (req, res) => {
-      await storage.discardActiveWalk(req.params.walkId, req.userId!);
+      await storage.discardActiveWalk(req.params.walkId, req.user!.id);
       res.json({ ok: true });
     }),
   );
@@ -524,8 +750,7 @@ export function registerRoutes(app: Express): void {
     "/api/walks/recent",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       if (!user.coupleId) return res.json([]);
 
       const [walks, members] = await Promise.all([
@@ -548,8 +773,7 @@ export function registerRoutes(app: Express): void {
     authMiddleware,
     handle(async (req, res) => {
       const query = statsQuerySchema.parse(req.query);
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       const start = new Date(query.startDate);
       const end = new Date(query.endDate);
@@ -582,12 +806,25 @@ export function registerRoutes(app: Express): void {
     "/api/walks/count",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
       const count = user.coupleId
         ? await storage.countCompletedWalksByCouple(user.coupleId)
         : 0;
       res.json({ count });
+    }),
+  );
+
+  app.delete(
+    "/api/walks/:walkId",
+    authMiddleware,
+    handle(async (req, res) => {
+      const deleted = await storage.deleteWalk(req.params.walkId, req.user!.id);
+      if (!deleted) {
+        return res
+          .status(404)
+          .json({ error: "NOT_FOUND", message: "Camminata non trovata" });
+      }
+      res.json({ ok: true });
     }),
   );
 
@@ -596,8 +833,7 @@ export function registerRoutes(app: Express): void {
     "/api/walks/:walkId",
     authMiddleware,
     handle(async (req, res) => {
-      const user = await requireUser(req, res);
-      if (!user) return;
+      const user = req.user!;
 
       const walk = await storage.getWalk(req.params.walkId);
       const canView =
@@ -631,7 +867,7 @@ export function registerRoutes(app: Express): void {
     "/api/notification-prefs",
     authMiddleware,
     handle(async (req, res) => {
-      const prefs = await storage.getNotificationPrefs(req.userId!);
+      const prefs = await storage.getNotificationPrefs(req.user!.id);
       res.json(prefs ? serializePrefs(prefs) : DEFAULT_PREFS);
     }),
   );
@@ -641,7 +877,7 @@ export function registerRoutes(app: Express): void {
     authMiddleware,
     handle(async (req, res) => {
       const data = notificationPrefsUpdateSchema.parse(req.body);
-      const prefs = await storage.upsertNotificationPrefs(req.userId!, data);
+      const prefs = await storage.upsertNotificationPrefs(req.user!.id, data);
       res.json(serializePrefs(prefs));
     }),
   );

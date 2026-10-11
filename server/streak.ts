@@ -35,3 +35,21 @@ export function applyWalkToStreak(
   }
   return { currentStreak: 1, lastLocalDate: walkLocalDate };
 }
+
+// Consecutive days ending at the most recent walk day.
+export function streakFromLocalDates(dates: string[]): {
+  currentStreak: number;
+  lastLocalDate: string | null;
+} {
+  const days = [...new Set(dates)].sort().reverse();
+  if (days.length === 0) return { currentStreak: 0, lastLocalDate: null };
+
+  let currentStreak = 1;
+  while (
+    currentStreak < days.length &&
+    daysBetween(days[currentStreak], days[currentStreak - 1]) === 1
+  ) {
+    currentStreak++;
+  }
+  return { currentStreak, lastLocalDate: days[0] };
+}

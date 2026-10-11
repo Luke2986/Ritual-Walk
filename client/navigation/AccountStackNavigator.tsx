@@ -6,6 +6,7 @@ import NotificationsScreen from "@/screens/NotificationsScreen";
 import ReminderSettingsScreen from "@/screens/ReminderSettingsScreen";
 import WeeklySummarySettingsScreen from "@/screens/WeeklySummarySettingsScreen";
 import QuietHoursSettingsScreen from "@/screens/QuietHoursSettingsScreen";
+import DeleteAccountScreen from "@/screens/DeleteAccountScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
@@ -15,6 +16,7 @@ export type AccountStackParamList = {
   ReminderSettings: undefined;
   WeeklySummarySettings: undefined;
   QuietHoursSettings: undefined;
+  DeleteAccount: undefined;
 };
 
 const Stack = createNativeStackNavigator<AccountStackParamList>();
@@ -57,6 +59,13 @@ export default function AccountStackNavigator() {
         component={QuietHoursSettingsScreen}
         options={{
           headerTitle: () => <HeaderTitle title="Ore silenziose" />,
+        }}
+      />
+      <Stack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
+        options={{
+          headerTitle: () => <HeaderTitle title="Elimina account" />,
         }}
       />
     </Stack.Navigator>
