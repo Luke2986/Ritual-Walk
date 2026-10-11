@@ -25,20 +25,15 @@ const isExpoGo =
 class TrackingService {
   private watcher: Location.LocationSubscription | null = null;
 
-  // Expo Go cannot run background location tasks, so only ask for "Always" in real builds.
+  // "While using the app" is enough for screen-off tracking when updates start with the app
+  // open (foreground service on Android, background mode on iOS), so we never ask for "Always".
+  // Expo Go cannot run location tasks at all.
   private async requestPermissions(): Promise<GpsMode> {
     if (Platform.OS === "web") return "off";
 
     const foreground = await Location.requestForegroundPermissionsAsync();
     if (!foreground.granted) return "off";
-    if (isExpoGo) return "foreground";
-
-    try {
-      const background = await Location.requestBackgroundPermissionsAsync();
-      return background.granted ? "background" : "foreground";
-    } catch {
-      return "foreground";
-    }
+    return isExpoGo ? "foreground" : "background";
   }
 
   private async startUpdates(mode: GpsMode): Promise<GpsMode> {
@@ -114,12 +109,7 @@ class TrackingService {
 
     const foreground = await Location.getForegroundPermissionsAsync();
     if (!foreground.granted) return { session, gps: "off" };
-    const background = isExpoGo
-      ? null
-      : await Location.getBackgroundPermissionsAsync().catch(() => null);
-    const gps = await this.startUpdates(
-      background?.granted ? "background" : "foreground",
-    );
+    const gps = await this.startUpdates(isExpoGo ? "foreground" : "background");
     return { session, gps };
   }
 

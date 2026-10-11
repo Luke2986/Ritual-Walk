@@ -30,7 +30,6 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "ACTIVITY_RECOGNITION"
@@ -61,7 +60,7 @@
           "locationAlwaysAndWhenInUsePermission": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate anche in background.",
           "locationAlwaysPermission": "Step Ritual ha bisogno della tua posizione per continuare a tracciare le tue camminate quando l'app è in background.",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": true
         }
       ],

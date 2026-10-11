@@ -80,7 +80,7 @@ Qualsiasi servizio che esegue Node.js va bene. Il comando di installazione è `n
 ### GPS, passi e limiti di Expo Go
 
 - **In Expo Go** il GPS funziona solo con l'app aperta: se blocchi lo schermo, il percorso riprende quando riapri l'app (il tratto mancante diventa una linea retta). L'app lo indica con "GPS solo ad app aperta".
-- **Per tracciare anche a schermo spento** serve una build vera dell'app (development build o build per gli store), ad esempio con [EAS Build](https://docs.expo.dev/build/introduction/) oppure `npx expo run:ios` / `npx expo run:android`. I permessi per la posizione in background sono già configurati in `app.json`.
+- **Per tracciare anche a schermo spento** serve una build vera dell'app (development build o build per gli store), ad esempio con [EAS Build](https://docs.expo.dev/build/introduction/) oppure `npx expo run:ios` / `npx expo run:android`. Basta il permesso "Mentre usi l'app": la camminata va avviata con l'app aperta, poi il tracciamento continua a schermo spento (su Android con una notifica fissa "Camminata in corso"). L'app non chiede mai "Consenti sempre".
 - **Android, build vere:** la mappa usa Google Maps e richiede una chiave API. Mettila in `GOOGLE_MAPS_ANDROID_API_KEY` (in `.env` o nei secrets di EAS). Expo Go non ne ha bisogno.
 - **Distanza:** si usa quella del GPS. Se il GPS non è disponibile, viene stimata dai passi.
 - **Solo telefono:** Step Ritual è pensata solo per smartphone. Se la apri da computer o da tablet, l'app resta in formato telefono, in una colonna al centro dello schermo. Su iPad gira come app per iPhone.
@@ -207,7 +207,7 @@ Any service that runs Node.js works. The install command is `npm install` and th
 ### GPS, steps and Expo Go limits
 
 - **In Expo Go**, GPS only works while the app is open: if you lock the screen, tracking resumes when you reopen the app (the missing stretch becomes a straight line). The app shows this as "GPS solo ad app aperta" ("GPS only while the app is open").
-- **To track with the screen off** you need a real build of the app (a development build or a store build), for example with [EAS Build](https://docs.expo.dev/build/introduction/) or `npx expo run:ios` / `npx expo run:android`. Background location permissions are already configured in `app.json`.
+- **To track with the screen off** you need a real build of the app (a development build or a store build), for example with [EAS Build](https://docs.expo.dev/build/introduction/) or `npx expo run:ios` / `npx expo run:android`. The "While using the app" permission is enough: start the walk with the app open and tracking continues with the screen off (on Android with an ongoing "Camminata in corso" notification). The app never asks for "Always".
 - **Android, real builds:** the map uses Google Maps and needs an API key. Put it in `GOOGLE_MAPS_ANDROID_API_KEY` (in `.env` or in EAS secrets). Expo Go doesn't need it.
 - **Distance:** taken from GPS. If GPS isn't available, it's estimated from steps.
 - **Phone only:** Step Ritual is designed for smartphones only. On a computer or tablet the app keeps its phone layout, in a column in the middle of the screen. On iPad it runs as an iPhone app.
