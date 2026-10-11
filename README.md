@@ -88,11 +88,32 @@ Qualsiasi servizio che esegue Node.js va bene. Il comando di installazione è `n
 - **Solo telefono:** Step Ritual è pensata solo per smartphone. Se la apri da computer o da tablet, l'app resta in formato telefono, in una colonna al centro dello schermo. Su iPad gira come app per iPhone.
 - **Versione web:** utile solo come anteprima. Non ha GPS né contapassi.
 
+### Collegare il progetto a Expo
+
+Serve un account Expo gratuito. Il collegamento attiva gli avvisi di camminata e permette di creare l'app installabile (APK). Per provare l'app con Expo Go non serve, a parte gli avvisi.
+
+1. **Account.** Crea un account su [expo.dev](https://expo.dev).
+2. **Accesso.** Nella cartella del progetto esegui il comando qui sotto e inserisci email e password di Expo. Per vedere con quale account sei collegato usa `npx eas-cli@latest whoami`.
+
+   ```bash
+   npx eas-cli@latest login
+   ```
+
+3. **Collegamento.** Esegui il comando qui sotto e conferma quando ti chiede di creare il progetto. Il progetto viene creato sul tuo account Expo e il suo ID viene scritto in `app.json` (`extra.eas.projectId`).
+
+   ```bash
+   npx eas-cli@latest init
+   ```
+
+4. **Salva l'ID.** L'ID non è segreto: fai un commit di `app.json`, così lo trovano sia `npm start` sia le build.
+
+Se la tua copia del repo contiene già l'ID di un altro account, cancella `extra.eas` da `app.json` e ripeti `init`: ogni progetto Expo appartiene a un solo account. In alternativa puoi mettere l'ID in `EAS_PROJECT_ID` nel `.env`, ma vale solo per `npm start` con Expo Go, perché i comandi `eas` non leggono il `.env`.
+
 ### App installabile su Android (APK)
 
 Con un account Expo gratuito crei un APK da installare sul telefono senza Play Store e senza Expo Go. A differenza di Expo Go, l'APK traccia la camminata anche a schermo spento.
 
-1. **Collega il progetto.** Esegui `npx eas-cli@latest login` e poi `npx eas-cli@latest init`, che scrive l'ID del progetto in `app.json` (`extra.eas.projectId`). L'ID non è segreto e puoi salvarlo nel repo; se lavori su un fork che ne contiene già uno, cancella `extra.eas` da `app.json` e ripeti `init`.
+1. **Collega il progetto.** Segui [Collegare il progetto a Expo](#collegare-il-progetto-a-expo).
 2. **Variabili della build.** Le build EAS non leggono il `.env`, quindi imposta le variabili nell'ambiente `preview`:
 
    ```bash
@@ -112,10 +133,9 @@ Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmat
 
 Quando uno dei due finisce una camminata, l'altra persona riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose di chi la riceve. Per attivarli:
 
-1. Crea un account gratuito su [expo.dev](https://expo.dev) ed esegui `npx eas-cli@latest init`: scrive il _project ID_ in `app.json`, dove lo trovano sia `npm start` sia le build EAS.
-2. In alternativa puoi metterlo in `EAS_PROJECT_ID` nel `.env`, ma vale solo per `npm start` con Expo Go: i comandi `eas` non leggono il `.env`, quindi per le build deve stare in `app.json`.
-3. **iOS:** funziona anche in Expo Go. **Android:** serve una development build o una build per gli store, con le credenziali FCM caricate su EAS (Expo Go per Android non riceve push).
-4. Se nel tuo account Expo hai attivato la _push security_, metti il token in `EXPO_ACCESS_TOKEN` sul server.
+1. Collega il progetto a Expo (vedi [Collegare il progetto a Expo](#collegare-il-progetto-a-expo)): è l'ID del progetto ad attivare gli avvisi.
+2. **iOS:** funziona anche in Expo Go. **Android:** serve una development build o una build per gli store, con le credenziali FCM caricate su EAS (Expo Go per Android non riceve push).
+3. Se nel tuo account Expo hai attivato la _push security_, metti il token in `EXPO_ACCESS_TOKEN` sul server.
 
 Senza project ID la voce "Avvisi di camminata" resta disattivata e mostra "Non disponibile in questa versione dell'app".
 
@@ -127,6 +147,10 @@ Il link "Password dimenticata?" compare solo se il server può inviare email. Im
 - `EMAIL_FROM`: il mittente, ad esempio `Step Ritual <noreply@tuodominio.it>`.
 
 L'utente riceve un codice di 6 cifre, valido 15 minuti, con al massimo 5 tentativi. Dopo il cambio password, le sessioni aperte sugli altri telefoni vengono chiuse.
+
+### Privacy e dati personali
+
+Il codice è fornito così com'è. Chi pubblica una propria copia (un server o un'app negli store) gestisce i dati dei propri utenti, tra cui email e percorsi GPS: ne è il titolare del trattamento ed è responsabile della privacy policy e degli obblighi previsti, come il GDPR. App Store e Google Play chiedono il link a una privacy policy prima della pubblicazione.
 
 ### Comandi utili
 
@@ -234,11 +258,32 @@ Any service that runs Node.js works. The install command is `npm install` and th
 - **Phone only:** Step Ritual is designed for smartphones only. On a computer or tablet the app keeps its phone layout, in a column in the middle of the screen. On iPad it runs as an iPhone app.
 - **Web version:** only useful as a preview. It has no GPS or step counter.
 
+### Link the project to Expo
+
+You need a free Expo account. Linking turns on walk alerts and lets you build the installable app (APK). You don't need it to try the app in Expo Go, apart from walk alerts.
+
+1. **Account.** Create an account on [expo.dev](https://expo.dev).
+2. **Sign in.** In the project folder run the command below and enter your Expo email and password. To see which account you're signed in with, use `npx eas-cli@latest whoami`.
+
+   ```bash
+   npx eas-cli@latest login
+   ```
+
+3. **Link.** Run the command below and confirm when it asks to create the project. The project is created on your Expo account and its ID is written into `app.json` (`extra.eas.projectId`).
+
+   ```bash
+   npx eas-cli@latest init
+   ```
+
+4. **Save the ID.** The ID isn't secret: commit `app.json` so both `npm start` and builds can find it.
+
+If your copy of the repo already contains another account's ID, delete `extra.eas` from `app.json` and run `init` again: each Expo project belongs to one account. You can also put the ID in `EAS_PROJECT_ID` in `.env`, but that only works for `npm start` with Expo Go, because `eas` commands don't read `.env`.
+
 ### Installable Android app (APK)
 
 With a free Expo account you can build an APK to install on the phone without the Play Store and without Expo Go. Unlike Expo Go, the APK keeps tracking the walk with the screen off.
 
-1. **Link the project.** Run `npx eas-cli@latest login` and then `npx eas-cli@latest init`, which writes the project ID into `app.json` (`extra.eas.projectId`). The ID isn't secret and you can commit it; if you work on a fork that already contains one, delete `extra.eas` from `app.json` and run `init` again.
+1. **Link the project.** Follow [Link the project to Expo](#link-the-project-to-expo).
 2. **Build variables.** EAS builds don't read `.env`, so set the variables in the `preview` environment:
 
    ```bash
@@ -258,10 +303,9 @@ Reminders and the weekly summary are **local** notifications: they're scheduled 
 
 When one of you finishes a walk, the other gets a push notification through Expo's free push service. It isn't sent during the receiver's quiet hours. To enable it:
 
-1. Create a free account on [expo.dev](https://expo.dev) and run `npx eas-cli@latest init`: it writes the _project ID_ into `app.json`, where both `npm start` and EAS builds find it.
-2. You can put it in `EAS_PROJECT_ID` in `.env` instead, but that only works for `npm start` with Expo Go: `eas` commands don't read `.env`, so builds need it in `app.json`.
-3. **iOS:** works in Expo Go too. **Android:** needs a development build or a store build, with FCM credentials uploaded to EAS (Expo Go on Android can't receive push notifications).
-4. If you turned on _push security_ in your Expo account, put the access token in `EXPO_ACCESS_TOKEN` on the server.
+1. Link the project to Expo (see [Link the project to Expo](#link-the-project-to-expo)): the project ID is what turns on walk alerts.
+2. **iOS:** works in Expo Go too. **Android:** needs a development build or a store build, with FCM credentials uploaded to EAS (Expo Go on Android can't receive push notifications).
+3. If you turned on _push security_ in your Expo account, put the access token in `EXPO_ACCESS_TOKEN` on the server.
 
 Without a project ID, the "Avvisi di camminata" (walk alerts) setting stays off and shows "Non disponibile in questa versione dell'app" ("Not available in this version of the app").
 
@@ -273,6 +317,10 @@ The "Password dimenticata?" ("Forgot password?") link only appears when the serv
 - `EMAIL_FROM`: the sender, for example `Step Ritual <noreply@yourdomain.com>`.
 
 The user gets a 6-digit code, valid for 15 minutes, with at most 5 attempts. After a password change, sessions open on other phones are signed out.
+
+### Privacy and personal data
+
+The code is provided as is. Whoever runs their own copy (a server or a store app) handles their users' data, including emails and GPS routes: they are the data controller and are responsible for the privacy policy and legal obligations such as the GDPR. The App Store and Google Play require a privacy policy link before publishing.
 
 ### Useful commands
 
