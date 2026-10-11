@@ -81,10 +81,26 @@ Qualsiasi servizio che esegue Node.js va bene. Il comando di installazione è `n
 
 - **In Expo Go** il GPS funziona solo con l'app aperta: se blocchi lo schermo, il percorso riprende quando riapri l'app (il tratto mancante diventa una linea retta). L'app lo indica con "GPS solo ad app aperta".
 - **Per tracciare anche a schermo spento** serve una build vera dell'app (development build o build per gli store), ad esempio con [EAS Build](https://docs.expo.dev/build/introduction/) oppure `npx expo run:ios` / `npx expo run:android`. Basta il permesso "Mentre usi l'app": la camminata va avviata con l'app aperta, poi il tracciamento continua a schermo spento (su Android con una notifica fissa "Camminata in corso"). L'app non chiede mai "Consenti sempre".
-- **Android, build vere:** la mappa usa Google Maps e richiede una chiave API. Mettila in `GOOGLE_MAPS_ANDROID_API_KEY` (in `.env` o nei secrets di EAS). Expo Go non ne ha bisogno.
+- **Android, build vere:** la mappa usa Google Maps e richiede una chiave API in `GOOGLE_MAPS_ANDROID_API_KEY` (nelle variabili EAS per le build, vedi [App installabile su Android](#app-installabile-su-android-apk)). Expo Go non ne ha bisogno.
 - **Distanza:** si usa quella del GPS. Se il GPS non è disponibile, viene stimata dai passi.
 - **Solo telefono:** Step Ritual è pensata solo per smartphone. Se la apri da computer o da tablet, l'app resta in formato telefono, in una colonna al centro dello schermo. Su iPad gira come app per iPhone.
 - **Versione web:** utile solo come anteprima. Non ha GPS né contapassi.
+
+### App installabile su Android (APK)
+
+Con un account Expo gratuito crei un APK da installare sul telefono senza Play Store e senza Expo Go. A differenza di Expo Go, l'APK traccia la camminata anche a schermo spento.
+
+1. **Collega il progetto.** Esegui `npx eas-cli@latest login` e poi `npx eas-cli@latest init`, che scrive l'ID del progetto in `app.json` (`extra.eas.projectId`). L'ID non è segreto e puoi salvarlo nel repo; se lavori su un fork che ne contiene già uno, cancella `extra.eas` da `app.json` e ripeti `init`.
+2. **Variabili della build.** Le build EAS non leggono il `.env`, quindi imposta le variabili nell'ambiente `preview`:
+
+   ```bash
+   npx eas-cli@latest env:set --environment preview --name EXPO_PUBLIC_API_URL --value https://<nome-progetto>.vercel.app --visibility plaintext
+   npx eas-cli@latest env:set --environment preview --name GOOGLE_MAPS_ANDROID_API_KEY --value <la-tua-chiave> --visibility sensitive
+   ```
+
+3. **Build.** Esegui `npx eas-cli@latest build --platform android --profile preview`. A fine build ricevi un link con un QR code: aprilo dal telefono, scarica l'APK e consenti l'installazione da origini sconosciute.
+
+Gli avvisi al partner su Android richiedono anche le credenziali FCM (vedi [Avvisi al partner](#avvisi-al-partner-push-facoltativi)). Il profilo `production` di `eas.json` prepara invece i pacchetti per gli store, con il numero di build che sale da solo; per usarlo imposta le stesse variabili nell'ambiente `production`.
 
 ### Notifiche
 
@@ -94,12 +110,12 @@ Promemoria e riepilogo settimanale sono notifiche **locali**: vengono programmat
 
 Quando uno dei due finisce una camminata, l'altro riceve una notifica push tramite il servizio gratuito di Expo. Non arriva durante le ore silenziose del partner. Per attivarli:
 
-1. Crea un account gratuito su [expo.dev](https://expo.dev) ed esegui `npx eas init`: ti dà un _project ID_.
-2. Mettilo in `EAS_PROJECT_ID`, nel `.env` e nelle variabili di EAS Build.
+1. Crea un account gratuito su [expo.dev](https://expo.dev) ed esegui `npx eas-cli@latest init`: scrive il _project ID_ in `app.json`, dove lo trovano sia `npm start` sia le build EAS.
+2. In alternativa puoi metterlo in `EAS_PROJECT_ID` nel `.env`, ma vale solo per `npm start` con Expo Go: i comandi `eas` non leggono il `.env`, quindi per le build deve stare in `app.json`.
 3. **iOS:** funziona anche in Expo Go. **Android:** serve una development build o una build per gli store, con le credenziali FCM caricate su EAS (Expo Go per Android non riceve push).
 4. Se nel tuo account Expo hai attivato la _push security_, metti il token in `EXPO_ACCESS_TOKEN` sul server.
 
-Senza `EAS_PROJECT_ID` la voce "Avvisi partner" resta disattivata e mostra "Non disponibile in questa versione dell'app".
+Senza project ID la voce "Avvisi partner" resta disattivata e mostra "Non disponibile in questa versione dell'app".
 
 #### Recupero password (email, facoltativo)
 
@@ -208,10 +224,26 @@ Any service that runs Node.js works. The install command is `npm install` and th
 
 - **In Expo Go**, GPS only works while the app is open: if you lock the screen, tracking resumes when you reopen the app (the missing stretch becomes a straight line). The app shows this as "GPS solo ad app aperta" ("GPS only while the app is open").
 - **To track with the screen off** you need a real build of the app (a development build or a store build), for example with [EAS Build](https://docs.expo.dev/build/introduction/) or `npx expo run:ios` / `npx expo run:android`. The "While using the app" permission is enough: start the walk with the app open and tracking continues with the screen off (on Android with an ongoing "Camminata in corso" notification). The app never asks for "Always".
-- **Android, real builds:** the map uses Google Maps and needs an API key. Put it in `GOOGLE_MAPS_ANDROID_API_KEY` (in `.env` or in EAS secrets). Expo Go doesn't need it.
+- **Android, real builds:** the map uses Google Maps and needs an API key in `GOOGLE_MAPS_ANDROID_API_KEY` (in the EAS variables for builds, see [Installable Android app](#installable-android-app-apk)). Expo Go doesn't need it.
 - **Distance:** taken from GPS. If GPS isn't available, it's estimated from steps.
 - **Phone only:** Step Ritual is designed for smartphones only. On a computer or tablet the app keeps its phone layout, in a column in the middle of the screen. On iPad it runs as an iPhone app.
 - **Web version:** only useful as a preview. It has no GPS or step counter.
+
+### Installable Android app (APK)
+
+With a free Expo account you can build an APK to install on the phone without the Play Store and without Expo Go. Unlike Expo Go, the APK keeps tracking the walk with the screen off.
+
+1. **Link the project.** Run `npx eas-cli@latest login` and then `npx eas-cli@latest init`, which writes the project ID into `app.json` (`extra.eas.projectId`). The ID isn't secret and you can commit it; if you work on a fork that already contains one, delete `extra.eas` from `app.json` and run `init` again.
+2. **Build variables.** EAS builds don't read `.env`, so set the variables in the `preview` environment:
+
+   ```bash
+   npx eas-cli@latest env:set --environment preview --name EXPO_PUBLIC_API_URL --value https://<project-name>.vercel.app --visibility plaintext
+   npx eas-cli@latest env:set --environment preview --name GOOGLE_MAPS_ANDROID_API_KEY --value <your-key> --visibility sensitive
+   ```
+
+3. **Build.** Run `npx eas-cli@latest build --platform android --profile preview`. When it finishes you get a link with a QR code: open it on the phone, download the APK and allow installs from unknown sources.
+
+Partner alerts on Android also need FCM credentials (see [Partner alerts](#partner-alerts-push-optional)). The `production` profile in `eas.json` builds the store packages instead, with the build number going up on its own; to use it, set the same variables in the `production` environment.
 
 ### Notifications
 
@@ -221,12 +253,12 @@ Reminders and the weekly summary are **local** notifications: they're scheduled 
 
 When one partner finishes a walk, the other gets a push notification through Expo's free push service. It isn't sent during the partner's quiet hours. To enable it:
 
-1. Create a free account on [expo.dev](https://expo.dev) and run `npx eas init`: it gives you a _project ID_.
-2. Put it in `EAS_PROJECT_ID`, both in `.env` and in your EAS Build environment variables.
+1. Create a free account on [expo.dev](https://expo.dev) and run `npx eas-cli@latest init`: it writes the _project ID_ into `app.json`, where both `npm start` and EAS builds find it.
+2. You can put it in `EAS_PROJECT_ID` in `.env` instead, but that only works for `npm start` with Expo Go: `eas` commands don't read `.env`, so builds need it in `app.json`.
 3. **iOS:** works in Expo Go too. **Android:** needs a development build or a store build, with FCM credentials uploaded to EAS (Expo Go on Android can't receive push notifications).
 4. If you turned on _push security_ in your Expo account, put the access token in `EXPO_ACCESS_TOKEN` on the server.
 
-Without `EAS_PROJECT_ID`, the "Avvisi partner" (partner alerts) setting stays off and shows "Non disponibile in questa versione dell'app" ("Not available in this version of the app").
+Without a project ID, the "Avvisi partner" (partner alerts) setting stays off and shows "Non disponibile in questa versione dell'app" ("Not available in this version of the app").
 
 #### Password recovery (email, optional)
 
