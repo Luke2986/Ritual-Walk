@@ -1,20 +1,19 @@
 {
-  "name": "my-app",
+  "name": "step-ritual",
   "main": "client/index.js",
   "version": "1.0.0",
   "scripts": {
-    "expo:dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN:5000 npx expo start --localhost",
-    "server:dev": "NODE_ENV=development tsx server/index.ts",
-    "expo:start:static:build": "npx expo start --no-dev --minify --localhost",
-    "expo:static:build": "node scripts/build.js",
-    "server:build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=server_dist",
-    "server:prod": "NODE_ENV=production node server_dist/index.js",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "server:dev": "tsx watch server/index.ts",
+    "server:start": "tsx server/index.ts",
     "db:push": "drizzle-kit push",
-    "lint": "npx expo lint",
-    "lint:fix": "npx expo lint --fix",
-    "check:types": "tsc --noEmit",
-    "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
-    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\""
+    "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
+    "check:types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.json",
+    "check:format": "prettier --check \"**/*.{js,ts,tsx,json}\"",
+    "format": "prettier --write \"**/*.{js,ts,tsx,json}\""
   },
   "dependencies": {
     "@expo-google-fonts/nunito": "^0.4.2",

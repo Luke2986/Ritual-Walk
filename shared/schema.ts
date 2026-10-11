@@ -9,7 +9,7 @@ import {
   json,
   boolean,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Couples table - represents a linked couple with shared stats
@@ -29,6 +29,8 @@ export const couples = pgTable("couples", {
   currentStreak: integer("current_streak").notNull().default(0),
   bestStreak: integer("best_streak").notNull().default(0),
   lastWalkDate: timestamp("last_walk_date"),
+  // Calendar day (YYYY-MM-DD) of the last walk in the walker's own timezone.
+  lastWalkLocalDate: varchar("last_walk_local_date", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -228,16 +230,19 @@ export type UserBadge = typeof userBadges.$inferSelect;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
 
 // Auth schemas
+const emailField = z.string().trim().toLowerCase().email("Email non valida");
+
 export const loginSchema = z.object({
-  email: z.string().email("Email non valida"),
+  email: emailField,
   password: z.string().min(6, "La password deve avere almeno 6 caratteri"),
 });
 
 export const registerSchema = z.object({
-  email: z.string().email("Email non valida"),
+  email: emailField,
   password: z.string().min(6, "La password deve avere almeno 6 caratteri"),
   nickname: z
     .string()
+    .trim()
     .min(2, "Il nickname deve avere almeno 2 caratteri")
     .max(50),
 });
@@ -245,6 +250,65 @@ export const registerSchema = z.object({
 export const joinCoupleSchema = z.object({
   ritualCode: z
     .string()
+    .trim()
+    .toUpperCase()
     .min(6, "Il codice deve avere almeno 6 caratteri")
     .max(8),
 });
+
+const localDateField = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida");
+
+export const endWalkSchema = z.object({
+  distanceKm: z.number().finite().min(0).max(200),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60 * 60),
+  stepsTotal: z.number().int().min(0).max(500000).default(0),
+  pathJson: z
+    .array(
+      z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+      }),
+    )
+    .max(5000)
+    .default([]),
+  localDate: localDateField,
+});
+
+export const statsQuerySchema = z
+  .object({
+    startDate: z.string().datetime({ offset: true }),
+    endDate: z.string().datetime({ offset: true }),
+  })
+  .refine((q) => new Date(q.startDate) <= new Date(q.endDate), {
+    message: "Intervallo di date non valido",
+  });
+
+const timeField = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Orario non valido");
+const weekdayField = z.number().int().min(1).max(7);
+
+export const notificationPrefsUpdateSchema = z
+  .object({
+    notificationsEnabled: z.boolean(),
+    remindersEnabled: z.boolean(),
+    reminderTime: timeField,
+    reminderDays: z.array(weekdayField).max(7),
+    reminderMessage: z.string().trim().max(200).nullable(),
+    partnerAlertsEnabled: z.boolean(),
+    badgesEnabled: z.boolean(),
+    weeklySummaryEnabled: z.boolean(),
+    weeklySummaryDay: weekdayField,
+    weeklySummaryTime: timeField,
+    quietHoursEnabled: z.boolean(),
+    quietStart: timeField,
+    quietEnd: timeField,
+    pushToken: z.string().max(500).nullable(),
+  })
+  .partial();
