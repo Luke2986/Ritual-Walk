@@ -8,6 +8,7 @@ import {
   timestamp,
   json,
   boolean,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -71,33 +72,19 @@ export const walks = pgTable("walks", {
   localDate: varchar("local_date", { length: 10 }),
 });
 
-// Badges table - achievement badges
-export const badges = pgTable("badges", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 50 }).notNull(),
-  description: text("description").notNull(),
-  icon: varchar("icon", { length: 30 }).notNull(),
-  kmThreshold: real("km_threshold"),
-  streakThreshold: integer("streak_threshold"),
-  walkCountThreshold: integer("walk_count_threshold"),
-  orderIndex: integer("order_index").notNull().default(0),
-});
-
-// User badges - tracks which badges each user has earned
-export const userBadges = pgTable("user_badges", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .notNull()
-    .references(() => users.id),
-  badgeId: varchar("badge_id")
-    .notNull()
-    .references(() => badges.id),
-  earnedAt: timestamp("earned_at").defaultNow().notNull(),
-});
+// Badges earned by a ritual (couple). Definitions live in shared/badges.ts; rows are never
+// removed, so deleting a walk doesn't take a badge away.
+export const coupleBadges = pgTable(
+  "couple_badges",
+  {
+    coupleId: varchar("couple_id")
+      .notNull()
+      .references(() => couples.id),
+    badgeKey: varchar("badge_key", { length: 40 }).notNull(),
+    earnedAt: timestamp("earned_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.coupleId, table.badgeKey] })],
+);
 
 // Notification preferences - per-user notification settings
 export const notificationPrefs = pgTable("notification_prefs", {
@@ -172,7 +159,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [couples.id],
   }),
   walks: many(walks),
-  badges: many(userBadges),
 }));
 
 export const walksRelations = relations(walks, ({ one }) => ({
@@ -183,21 +169,6 @@ export const walksRelations = relations(walks, ({ one }) => ({
   couple: one(couples, {
     fields: [walks.coupleId],
     references: [couples.id],
-  }),
-}));
-
-export const badgesRelations = relations(badges, ({ many }) => ({
-  userBadges: many(userBadges),
-}));
-
-export const userBadgesRelations = relations(userBadges, ({ one }) => ({
-  user: one(users, {
-    fields: [userBadges.userId],
-    references: [users.id],
-  }),
-  badge: one(badges, {
-    fields: [userBadges.badgeId],
-    references: [badges.id],
   }),
 }));
 
@@ -231,16 +202,6 @@ export const insertWalkSchema = createInsertSchema(walks).pick({
   pathJson: true,
 });
 
-export const insertBadgeSchema = createInsertSchema(badges).pick({
-  name: true,
-  description: true,
-  icon: true,
-  kmThreshold: true,
-  streakThreshold: true,
-  walkCountThreshold: true,
-  orderIndex: true,
-});
-
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -248,8 +209,7 @@ export type InsertCouple = z.infer<typeof insertCoupleSchema>;
 export type Couple = typeof couples.$inferSelect;
 export type InsertWalk = z.infer<typeof insertWalkSchema>;
 export type Walk = typeof walks.$inferSelect;
-export type Badge = typeof badges.$inferSelect;
-export type UserBadge = typeof userBadges.$inferSelect;
+export type CoupleBadge = typeof coupleBadges.$inferSelect;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
 export type PasswordReset = typeof passwordResets.$inferSelect;
 
@@ -324,6 +284,8 @@ export const endWalkSchema = z.object({
     .default([]),
   localDate: localDateField,
 });
+
+export const badgesQuerySchema = z.object({ today: localDateField });
 
 export const statsQuerySchema = z
   .object({

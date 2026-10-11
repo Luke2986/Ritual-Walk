@@ -7,6 +7,7 @@ import { lastWalkLocalDateOf } from "./streak";
 import { isMailConfigured, sendPasswordResetEmail } from "./mailer";
 import { sendExpoPush } from "./push";
 import { isInQuietHours, timeInZone } from "../shared/quietHours";
+import { badgeProgress, earnedBadges, type BadgeKey } from "../shared/badges";
 import {
   registerSchema,
   loginSchema,
@@ -16,6 +17,7 @@ import {
   joinCoupleSchema,
   endWalkSchema,
   statsQuerySchema,
+  badgesQuerySchema,
   notificationPrefsUpdateSchema,
   type User,
   type Couple,
@@ -236,6 +238,12 @@ export function registerRoutes(app: Express): void {
     Promise.all(
       keys.map((key) => storage.recordAuthAttempt(key, ATTEMPT_WINDOW_SECONDS)),
     );
+
+  // Stores the badges the ritual's walks have reached; returns the ones earned just now.
+  async function awardBadges(coupleId: string): Promise<BadgeKey[]> {
+    const walks = await storage.getBadgeWalks(coupleId);
+    return storage.addCoupleBadges(coupleId, earnedBadges(walks));
+  }
 
   async function notifyPartnerOfWalk(walker: User, distanceKm: number) {
     if (!walker.coupleId || distanceKm <= 0) return;
@@ -735,11 +743,20 @@ export function registerRoutes(app: Express): void {
         return res.status(status).json({ error: result.code, message });
       }
 
+      // The walk is saved: a badge error must not turn the save into a failure.
+      const newBadges =
+        user.coupleId && data.distanceKm > 0
+          ? await awardBadges(user.coupleId).catch((error) => {
+              console.warn("Badge update failed:", error);
+              return [];
+            })
+          : [];
+
       // Awaited because serverless hosts may stop work after the response.
       await notifyPartnerOfWalk(user, data.distanceKm).catch((error) =>
         console.warn("Partner alert failed:", error),
       );
-      res.json({ walk: result.walk });
+      res.json({ walk: result.walk, newBadges });
     }),
   );
 
@@ -808,15 +825,22 @@ export function registerRoutes(app: Express): void {
     }),
   );
 
+  // `today` is the phone's local date: progress such as "this week" depends on it.
   app.get(
-    "/api/walks/count",
+    "/api/badges",
     authMiddleware,
     handle(async (req, res) => {
+      const { today } = badgesQuerySchema.parse(req.query);
       const user = req.user!;
-      const count = user.coupleId
-        ? await storage.countCompletedWalksByCouple(user.coupleId)
-        : 0;
-      res.json({ count });
+      if (!user.coupleId) {
+        return res.json({ earned: [], progress: badgeProgress([], today) });
+      }
+
+      const walks = await storage.getBadgeWalks(user.coupleId);
+      // Also records badges reached before they were stored (older walks).
+      await storage.addCoupleBadges(user.coupleId, earnedBadges(walks));
+      const earned = await storage.getCoupleBadges(user.coupleId);
+      res.json({ earned, progress: badgeProgress(walks, today) });
     }),
   );
 

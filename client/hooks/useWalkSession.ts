@@ -14,6 +14,8 @@ import {
   type TrackPoint,
 } from "@/lib/tracking";
 import { toLocalDateKey } from "@shared/dates";
+import type { BadgeKey } from "@shared/badges";
+import { invalidateBadges } from "@/lib/badgesQuery";
 
 export type SessionState =
   | "idle"
@@ -70,6 +72,8 @@ export function useWalkSession() {
   const [isLocked, setIsLocked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Badges the ritual reached with the walk just saved, shown before the sheet closes.
+  const [newBadges, setNewBadges] = useState<BadgeKey[]>([]);
 
   const pedometerRef = useRef<{ remove: () => void } | null>(null);
   const pedometerGenRef = useRef(0);
@@ -284,14 +288,21 @@ export function useWalkSession() {
     setIsSaving(true);
     setSaveError(null);
 
+    let earned: BadgeKey[] = [];
     try {
-      await apiRequest("POST", `/api/walks/${session.walkId}/end`, {
-        distanceKm: Math.min(Math.round(distanceKm * 1000) / 1000, 200),
-        durationSeconds: Math.min(durationSeconds, 24 * 60 * 60),
-        stepsTotal: steps,
-        pathJson: simplifyPath(points, MAX_PATH_POINTS),
-        localDate: toLocalDateKey(new Date(session.startedAt)),
-      });
+      const response = await apiRequest(
+        "POST",
+        `/api/walks/${session.walkId}/end`,
+        {
+          distanceKm: Math.min(Math.round(distanceKm * 1000) / 1000, 200),
+          durationSeconds: Math.min(durationSeconds, 24 * 60 * 60),
+          stepsTotal: steps,
+          pathJson: simplifyPath(points, MAX_PATH_POINTS),
+          localDate: toLocalDateKey(new Date(session.startedAt)),
+        },
+      );
+      const body = await response.json().catch(() => null);
+      earned = Array.isArray(body?.newBadges) ? body.newBadges : [];
     } catch (error) {
       // 409 means an earlier attempt already saved it (e.g. the response was lost).
       if (!(error instanceof ApiError && error.status === 409)) {
@@ -308,9 +319,10 @@ export function useWalkSession() {
     await trackingService.clear().catch(() => {});
     reset();
     setIsSaving(false);
+    setNewBadges(earned);
     queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
     queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/walks/count"] });
+    invalidateBadges();
     refreshUser().catch(() => {});
   }, [
     session,
@@ -322,6 +334,8 @@ export function useWalkSession() {
     reset,
     refreshUser,
   ]);
+
+  const dismissNewBadges = useCallback(() => setNewBadges([]), []);
 
   const discardSession = useCallback(async () => {
     if (session) {
@@ -354,6 +368,8 @@ export function useWalkSession() {
     isLocked,
     isSaving,
     saveError,
+    newBadges,
+    dismissNewBadges,
     startSession,
     pauseSession,
     resumeSession,

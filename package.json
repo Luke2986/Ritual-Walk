@@ -14,6 +14,7 @@
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
     "check:types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.json",
+    "test": "tsx --test shared/badges.test.ts",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,json}\"",
     "format": "prettier --write \"**/*.{js,ts,tsx,json}\""
   },

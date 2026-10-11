@@ -12,7 +12,7 @@ App per camminare in due e farne un rituale quotidiano, con chi vuoi: partner, a
 - **Camminata con GPS**: mappa in tempo reale del percorso (tipo Strava), distanza, tempo, passi, pausa/ripresa e blocco schermo "in tasca".
 - **Storico**: grafici settimana/mese/anno di entrambi, elenco delle camminate e dettaglio con la mappa del percorso.
 - **Streak condiviso**: i giorni consecutivi in cui almeno uno dei due ha camminato, più il record personale.
-- **Premi**: badge per km totali, streak e numero di camminate.
+- **Premi**: badge del rituale per giorni insieme, streak, km e numero di camminate. Ogni premio mostra quanto manca e la data in cui l'avete sbloccato, e a fine camminata compare quello appena raggiunto. Eliminare una camminata non toglie un premio già ottenuto.
 - **Promemoria**: notifiche locali nei giorni e all'ora che scegli, riepilogo settimanale e ore silenziose.
 - **Avvisi di camminata** (facoltativi): quando finisci una camminata, l'altra persona riceve una notifica, ad esempio "Luca ha appena camminato 3 km".
 - **Account**: recupero della password via email (facoltativo), eliminazione di una singola camminata e dell'intero account direttamente dall'app. Dopo troppi tentativi di accesso sbagliati il login si blocca per 15 minuti.
@@ -51,7 +51,7 @@ Apri `.env` e compila almeno:
 - `JWT_SECRET`: una stringa casuale lunga (`openssl rand -hex 32`)
 - `EXPO_PUBLIC_API_URL`: dove gira l'API. Se provi dal telefono, usa l'IP del computer nella rete Wi-Fi (es. `http://192.168.1.20:5000`), non `localhost`.
 
-Poi crea le tabelle e avvia server e app (in due terminali). Ogni volta che scarichi una versione nuova del codice, riesegui `npm run db:push`: aggiorna le tabelle senza cancellare i dati.
+Poi crea le tabelle e avvia server e app (in due terminali). Ogni volta che scarichi una versione nuova del codice, riesegui `npm run db:push`: aggiorna le tabelle senza cancellare i dati. Se ti chiede se una tabella è nuova o rinominata, conferma con Invio la prima opzione (_create table_).
 
 ```bash
 npm run db:push
@@ -135,6 +135,7 @@ L'utente riceve un codice di 6 cifre, valido 15 minuti, con al massimo 5 tentati
 | `npm run db:push`     | Crea o aggiorna le tabelle del database       |
 | `npm run check:types` | Controllo dei tipi TypeScript (app e server)  |
 | `npm run lint`        | Controllo del codice                          |
+| `npm test`            | Test della logica dei premi                   |
 
 ### Licenza
 
@@ -155,7 +156,7 @@ An app for two people who want to make walking a daily ritual, with whoever you 
 - **GPS walks**: live map of your route (like Strava), distance, time, steps, pause/resume and an "in your pocket" screen lock.
 - **History**: weekly/monthly/yearly charts for both of you, a list of walks and a detail view with the route map.
 - **Shared streak**: consecutive days on which at least one of you walked, plus your best streak.
-- **Rewards**: badges for total km, streaks and number of walks.
+- **Rewards**: ritual badges for days together, streaks, km and number of walks. Each badge shows what is missing and the date you earned it, and the end of a walk shows any badge you just reached. Deleting a walk never takes away a badge you already earned.
 - **Reminders**: local notifications on the days and time you choose, a weekly summary and quiet hours.
 - **Walk alerts** (optional): when you finish a walk, the other person gets a notification such as "Luca ha appena camminato 3 km" ("Luca just walked 3 km").
 - **Account**: password recovery by email (optional), and deleting a single walk or your whole account right from the app. After too many failed sign-in attempts, login is locked for 15 minutes.
@@ -194,7 +195,7 @@ Open `.env` and fill in at least:
 - `JWT_SECRET`: a long random string (`openssl rand -hex 32`)
 - `EXPO_PUBLIC_API_URL`: where the API runs. When testing from a phone, use your computer's Wi-Fi IP address (e.g. `http://192.168.1.20:5000`), not `localhost`.
 
-Then create the tables and start the server and the app (in two terminals). Whenever you pull a new version of the code, run `npm run db:push` again: it updates the tables without deleting data.
+Then create the tables and start the server and the app (in two terminals). Whenever you pull a new version of the code, run `npm run db:push` again: it updates the tables without deleting data. If it asks whether a table is new or renamed, press Enter on the first option (_create table_).
 
 ```bash
 npm run db:push
@@ -278,6 +279,7 @@ The user gets a 6-digit code, valid for 15 minutes, with at most 5 attempts. Aft
 | `npm run db:push`     | Create or update the database tables   |
 | `npm run check:types` | TypeScript type check (app and server) |
 | `npm run lint`        | Lint the code                          |
+| `npm test`            | Tests for the badge logic              |
 
 ### License
 

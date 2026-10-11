@@ -3,7 +3,7 @@ import {
   couples,
   walks,
   notificationPrefs,
-  userBadges,
+  coupleBadges,
   authAttempts,
   passwordResets,
   type User,
@@ -13,8 +13,9 @@ import {
   type NotificationPrefs,
   type PasswordReset,
 } from "../shared/schema";
+import type { BadgeKey, BadgeWalk } from "../shared/badges";
 import { db } from "./db";
-import { eq, desc, and, sql, gt, gte, lte, inArray, count } from "drizzle-orm";
+import { eq, desc, and, sql, gt, gte, lte, inArray } from "drizzle-orm";
 import {
   applyWalkToStreak,
   lastWalkLocalDateOf,
@@ -47,6 +48,11 @@ export interface EndWalkData {
 
 const completedWalk = and(eq(walks.isActive, false), gt(walks.distanceKm, 0));
 
+// Walks saved before local_date existed only have a UTC timestamp.
+function walkLocalDate(walk: { localDate: string | null; startedAt: Date }) {
+  return walk.localDate ?? walk.startedAt.toISOString().slice(0, 10);
+}
+
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Totals and streak are derived from the couple's walks, so they can be rebuilt after a delete.
@@ -68,9 +74,7 @@ async function rebuildCoupleStats(tx: Tx, coupleId: string) {
     .from(walks)
     .where(and(eq(walks.coupleId, coupleId), completedWalk));
 
-  const streak = streakFromLocalDates(
-    rows.map((w) => w.localDate ?? w.startedAt.toISOString().slice(0, 10)),
-  );
+  const streak = streakFromLocalDates(rows.map(walkLocalDate));
   const lastWalkDate = rows.reduce<Date | null>((latest, w) => {
     const at = w.endedAt ?? w.startedAt;
     return !latest || at > latest ? at : latest;
@@ -449,7 +453,6 @@ export class DatabaseStorage {
       await tx
         .delete(notificationPrefs)
         .where(eq(notificationPrefs.userId, userId));
-      await tx.delete(userBadges).where(eq(userBadges.userId, userId));
       await tx.delete(passwordResets).where(eq(passwordResets.userId, userId));
       await tx
         .delete(authAttempts)
@@ -494,12 +497,50 @@ export class DatabaseStorage {
       .orderBy(desc(walks.startedAt));
   }
 
-  async countCompletedWalksByCouple(coupleId: string): Promise<number> {
-    const [row] = await db
-      .select({ value: count() })
+  async getBadgeWalks(coupleId: string): Promise<BadgeWalk[]> {
+    const rows = await db
+      .select({
+        userId: walks.userId,
+        distanceKm: walks.distanceKm,
+        localDate: walks.localDate,
+        startedAt: walks.startedAt,
+        endedAt: walks.endedAt,
+      })
       .from(walks)
       .where(and(eq(walks.coupleId, coupleId), completedWalk));
-    return row?.value ?? 0;
+    return rows.map((w) => ({
+      userId: w.userId,
+      distanceKm: w.distanceKm,
+      localDate: walkLocalDate(w),
+      endedAt: w.endedAt ?? w.startedAt,
+    }));
+  }
+
+  async getCoupleBadges(coupleId: string) {
+    return db
+      .select({ key: coupleBadges.badgeKey, earnedAt: coupleBadges.earnedAt })
+      .from(coupleBadges)
+      .where(eq(coupleBadges.coupleId, coupleId));
+  }
+
+  // Keeps the first earned date of badges already stored; returns the keys added now.
+  async addCoupleBadges(
+    coupleId: string,
+    earned: Map<BadgeKey, Date>,
+  ): Promise<BadgeKey[]> {
+    if (earned.size === 0) return [];
+    const inserted = await db
+      .insert(coupleBadges)
+      .values(
+        [...earned].map(([badgeKey, earnedAt]) => ({
+          coupleId,
+          badgeKey,
+          earnedAt,
+        })),
+      )
+      .onConflictDoNothing()
+      .returning({ key: coupleBadges.badgeKey });
+    return inserted.map((row) => row.key as BadgeKey);
   }
 
   // Counts live in the database so limits hold across serverless instances.

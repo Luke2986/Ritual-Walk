@@ -28,6 +28,7 @@ import { Spacing, Colors, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
+import { invalidateBadges } from "@/lib/badgesQuery";
 import { confirmDestructive } from "@/lib/confirm";
 
 type WalkDetailScreenProps = {
@@ -123,7 +124,7 @@ export default function WalkDetailScreen({ route }: WalkDetailScreenProps) {
     queryClient.removeQueries({ queryKey: ["/api/walks", walkId] });
     queryClient.invalidateQueries({ queryKey: ["/api/walks/recent"] });
     queryClient.invalidateQueries({ queryKey: ["/api/walks/stats"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/walks/count"] });
+    invalidateBadges();
     refreshUser().catch(() => {});
   };
 

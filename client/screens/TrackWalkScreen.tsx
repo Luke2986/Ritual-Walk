@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,6 +39,7 @@ import { WalkSummarySheet } from "@/components/walk/WalkSummarySheet";
 import { Spacing, Colors, BorderRadius, Shadows } from "@/constants/theme";
 
 export default function TrackWalkScreen() {
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
@@ -61,6 +63,8 @@ export default function TrackWalkScreen() {
     unlock,
     confirmSummary,
     discardSession,
+    newBadges,
+    dismissNewBadges,
   } = useWalkSession();
 
   const chipPulse = useSharedValue(1);
@@ -330,6 +334,12 @@ export default function TrackWalkScreen() {
 
         <WalkSummarySheet
           visible={sessionState === "summary"}
+          newBadges={newBadges}
+          onShowBadges={() => {
+            dismissNewBadges();
+            navigation.navigate("PremiTab");
+          }}
+          onCloseBadges={dismissNewBadges}
           steps={steps}
           distanceKm={distanceKm}
           durationFormatted={formatDuration(durationSeconds)}

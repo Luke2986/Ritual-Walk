@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -14,193 +15,180 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { getEffectiveStreak } from "@/lib/statsAggregation";
+import {
+  BADGES,
+  BADGE_GROUPS,
+  formatKm,
+  progressOf,
+  type BadgeDefinition,
+  type BadgeKey,
+  type BadgeProgress,
+} from "@shared/badges";
 
 import { ThemedText } from "@/components/ThemedText";
+import { BadgeIcon } from "@/components/BadgeIcon";
+import { NeonButton } from "@/components/NeonButton";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spacing, BorderRadius, Colors } from "@/constants/theme";
+import { MAX_APP_WIDTH } from "@/hooks/useAppWidth";
+import { badgesQueryKey, type BadgesResponse } from "@/lib/badgesQuery";
+import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  kmThreshold: number | null;
-  streakThreshold: number | null;
-  walkCountThreshold: number | null;
-  earned: boolean;
+const EMPTY_PROGRESS: BadgeProgress = {
+  totalKm: 0,
+  walkCount: 0,
+  togetherDays: 0,
+  currentStreak: 0,
+  thisWeekTogether: 0,
+  currentGoodWeekRun: 0,
+};
+
+// "il 14 ottobre 2026", "l'8 ottobre 2026", "il 1° ottobre 2026"
+function earnedOn(iso: string) {
+  const date = new Date(iso);
+  const day = date.getDate();
+  const monthYear = date.toLocaleDateString("it-IT", {
+    month: "long",
+    year: "numeric",
+  });
+  if (day === 1) return `il 1° ${monthYear}`;
+  return `${day === 8 || day === 11 ? "l'" : "il "}${day} ${monthYear}`;
 }
-
-const DEFAULT_BADGES: Badge[] = [
-  {
-    id: "1",
-    name: "Primo Passo",
-    description: "Completa la tua prima camminata",
-    icon: "play",
-    kmThreshold: null,
-    streakThreshold: null,
-    walkCountThreshold: 1,
-    earned: false,
-  },
-  {
-    id: "2",
-    name: "5 Km",
-    description: "Raggiungi 5 km totali",
-    icon: "map-pin",
-    kmThreshold: 5,
-    streakThreshold: null,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "3",
-    name: "10 Km",
-    description: "Raggiungi 10 km totali",
-    icon: "navigation",
-    kmThreshold: 10,
-    streakThreshold: null,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "4",
-    name: "Maratoneta",
-    description: "Raggiungi 42 km totali",
-    icon: "award",
-    kmThreshold: 42,
-    streakThreshold: null,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "5",
-    name: "3 Giorni",
-    description: "Mantieni uno streak di 3 giorni",
-    icon: "zap",
-    kmThreshold: null,
-    streakThreshold: 3,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "6",
-    name: "7 Giorni",
-    description: "Mantieni uno streak di 7 giorni",
-    icon: "star",
-    kmThreshold: null,
-    streakThreshold: 7,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "7",
-    name: "30 Giorni",
-    description: "Mantieni uno streak di 30 giorni",
-    icon: "sun",
-    kmThreshold: null,
-    streakThreshold: 30,
-    walkCountThreshold: null,
-    earned: false,
-  },
-  {
-    id: "8",
-    name: "10 Camminate",
-    description: "Completa 10 camminate",
-    icon: "trending-up",
-    kmThreshold: null,
-    streakThreshold: null,
-    walkCountThreshold: 10,
-    earned: false,
-  },
-  {
-    id: "9",
-    name: "100 Km",
-    description: "Raggiungi 100 km totali",
-    icon: "target",
-    kmThreshold: 100,
-    streakThreshold: null,
-    walkCountThreshold: null,
-    earned: false,
-  },
-];
 
 function BadgeItem({
   badge,
-  totalKm,
-  currentStreak,
-  bestStreak,
-  walkCount,
+  earned,
+  progress,
+  onPress,
 }: {
-  badge: Badge;
-  totalKm: number;
-  currentStreak: number;
-  bestStreak: number;
-  walkCount: number;
+  badge: BadgeDefinition;
+  earned: boolean;
+  progress: number;
+  onPress: () => void;
 }) {
-  const { theme } = useTheme();
-
-  const isEarned = React.useMemo(() => {
-    if (badge.kmThreshold && totalKm >= badge.kmThreshold) return true;
-    if (badge.streakThreshold && bestStreak >= badge.streakThreshold)
-      return true;
-    if (badge.walkCountThreshold && walkCount >= badge.walkCountThreshold)
-      return true;
-    return false;
-  }, [badge, totalKm, bestStreak, walkCount]);
-
-  const progress = React.useMemo(() => {
-    if (badge.kmThreshold) return Math.min(totalKm / badge.kmThreshold, 1);
-    if (badge.streakThreshold)
-      return Math.min(currentStreak / badge.streakThreshold, 1);
-    if (badge.walkCountThreshold)
-      return Math.min(walkCount / badge.walkCountThreshold, 1);
-    return 0;
-  }, [badge, totalKm, currentStreak, walkCount]);
-
   return (
-    <View style={styles.badgeItem}>
-      {isEarned ? (
-        <LinearGradient
-          colors={["#FF4D6D", "#FF2FB3"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.badgeCircle}
-        >
-          <Feather name={badge.icon as any} size={28} color="#FFFFFF" />
-        </LinearGradient>
-      ) : (
-        <View style={styles.badgeCircleLocked}>
-          <View
-            style={[styles.badgeProgress, { height: `${progress * 100}%` }]}
-          />
-          <Feather
-            name={badge.icon as any}
-            size={28}
-            color="rgba(59, 47, 138, 0.4)"
-          />
-        </View>
-      )}
+    <Pressable
+      style={({ pressed }) => [styles.badgeItem, pressed && { opacity: 0.7 }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${badge.name}, ${earned ? "sbloccato" : "da sbloccare"}`}
+    >
+      <BadgeIcon icon={badge.icon} earned={earned} progress={progress} />
       <ThemedText
-        style={[styles.badgeName, !isEarned && styles.badgeNameLocked]}
+        style={[styles.badgeName, !earned && styles.badgeNameLocked]}
         numberOfLines={2}
       >
         {badge.name}
       </ThemedText>
-    </View>
+    </Pressable>
+  );
+}
+
+function BadgeDetailSheet({
+  badge,
+  earnedAt,
+  progress,
+  onClose,
+}: {
+  badge: BadgeDefinition | null;
+  earnedAt: string | undefined;
+  progress: BadgeProgress;
+  onClose: () => void;
+}) {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const status = badge ? progressOf(badge, progress) : null;
+  const fraction = badge && status ? status.value / badge.target : 0;
+
+  return (
+    <Modal
+      visible={badge !== null}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        {badge && status ? (
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: theme.backgroundDefault,
+                paddingBottom: insets.bottom + Spacing.lg,
+              },
+            ]}
+          >
+            <View style={styles.handle} />
+            <View style={styles.sheetHeader}>
+              <BadgeIcon
+                icon={badge.icon}
+                earned={!!earnedAt}
+                progress={fraction}
+                size={96}
+              />
+              <ThemedText type="h3" style={styles.sheetTitle}>
+                {badge.name}
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.sheetDescription,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                {badge.description}
+              </ThemedText>
+            </View>
+
+            {earnedAt ? (
+              <View style={styles.earnedRow}>
+                <Feather name="check-circle" size={18} color="#FF2FB3" />
+                <ThemedText style={styles.earnedText}>
+                  Sbloccato {earnedOn(earnedAt)}
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.progressBlock}>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.min(fraction, 1) * 100}%` },
+                    ]}
+                  />
+                </View>
+                <ThemedText
+                  style={[styles.progressText, { color: theme.textSecondary }]}
+                >
+                  {status.label}
+                </ThemedText>
+              </View>
+            )}
+
+            <NeonButton
+              onPress={onClose}
+              size="large"
+              style={styles.closeButton}
+            >
+              Chiudi
+            </NeonButton>
+          </View>
+        ) : null}
+      </View>
+    </Modal>
   );
 }
 
 export default function PremiScreen() {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { couple, refreshUser } = useAuth();
+  const [selected, setSelected] = useState<BadgeDefinition | null>(null);
 
-  const { data: walksData, refetch } = useQuery<{ count: number }>({
-    queryKey: ["/api/walks/count"],
-    enabled: !!couple,
+  const { data, refetch } = useQuery<BadgesResponse>({
+    queryKey: badgesQueryKey(),
   });
 
   const [refreshing, setRefreshing] = useState(false);
@@ -222,20 +210,22 @@ export default function PremiScreen() {
     }
   }, [refetch, refreshUser, refreshing]);
 
-  const totalKm = couple?.totalKm || 0;
-  const currentStreak = couple ? getEffectiveStreak(couple) : 0;
-  const bestStreak = Math.max(couple?.bestStreak ?? 0, currentStreak);
-  const walkCount = walksData?.count || 0;
+  const progress = data?.progress ?? EMPTY_PROGRESS;
+  const earnedAt = useMemo(
+    () =>
+      new Map<BadgeKey, string>(
+        (data?.earned ?? []).map((badge) => [badge.key, badge.earnedAt]),
+      ),
+    [data],
+  );
 
-  const nextGoal = React.useMemo(() => {
-    const kmGoals = [5, 10, 42, 100];
-    for (const goal of kmGoals) {
-      if (totalKm < goal) {
-        return { type: "km", value: goal, remaining: goal - totalKm };
-      }
-    }
-    return null;
-  }, [totalKm]);
+  const nextGoal = useMemo(
+    () =>
+      BADGES.find(
+        (badge) => badge.metric === "totalKm" && !earnedAt.has(badge.key),
+      ),
+    [earnedAt],
+  );
 
   return (
     <LinearGradient
@@ -260,7 +250,15 @@ export default function PremiScreen() {
           />
         }
       >
-        {nextGoal ? (
+        {!couple ? (
+          <View style={styles.infoCard}>
+            <Feather name="users" size={20} color="#B88BFF" />
+            <ThemedText style={styles.infoText}>
+              I premi sono del vostro rituale: collega il tuo account a chi
+              cammina con te per iniziare a sbloccarli.
+            </ThemedText>
+          </View>
+        ) : nextGoal ? (
           <View style={styles.goalCard}>
             <LinearGradient
               colors={["rgba(184, 139, 255, 0.2)", "rgba(255, 77, 109, 0.1)"]}
@@ -272,33 +270,43 @@ export default function PremiScreen() {
                   PROSSIMO OBIETTIVO
                 </ThemedText>
                 <ThemedText type="h4" style={styles.goalValue}>
-                  {nextGoal.value} km totali
+                  {nextGoal.target} km totali
                 </ThemedText>
                 <ThemedText type="caption" style={styles.goalRemaining}>
-                  Mancano {nextGoal.remaining.toFixed(1)} km
+                  Mancano{" "}
+                  {formatKm(Math.max(nextGoal.target - progress.totalKm, 0))} km
                 </ThemedText>
               </View>
             </LinearGradient>
           </View>
         ) : null}
 
-        <View style={styles.sectionHeader}>
-          <ThemedText type="h4">I Tuoi Premi</ThemedText>
-        </View>
-
-        <View style={styles.badgeGrid}>
-          {DEFAULT_BADGES.map((badge) => (
-            <BadgeItem
-              key={badge.id}
-              badge={badge}
-              totalKm={totalKm}
-              currentStreak={currentStreak}
-              bestStreak={bestStreak}
-              walkCount={walkCount}
-            />
-          ))}
-        </View>
+        {BADGE_GROUPS.map(({ group, title }) => (
+          <View key={group}>
+            <View style={styles.sectionHeader}>
+              <ThemedText type="h4">{title}</ThemedText>
+            </View>
+            <View style={styles.badgeGrid}>
+              {BADGES.filter((badge) => badge.group === group).map((badge) => (
+                <BadgeItem
+                  key={badge.key}
+                  badge={badge}
+                  earned={earnedAt.has(badge.key)}
+                  progress={progressOf(badge, progress).value / badge.target}
+                  onPress={() => setSelected(badge)}
+                />
+              ))}
+            </View>
+          </View>
+        ))}
       </ScrollView>
+
+      <BadgeDetailSheet
+        badge={selected}
+        earnedAt={selected ? earnedAt.get(selected.key) : undefined}
+        progress={progress}
+        onClose={() => setSelected(null)}
+      />
     </LinearGradient>
   );
 }
@@ -310,6 +318,20 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.xl,
     flexGrow: 1,
+  },
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing["2xl"],
+    borderRadius: BorderRadius.lg,
+    backgroundColor: "rgba(184, 139, 255, 0.1)",
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#3B2F8A",
   },
   goalCard: {
     marginBottom: Spacing["2xl"],
@@ -348,43 +370,13 @@ const styles = StyleSheet.create({
   badgeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
     gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   badgeItem: {
     width: "30%",
     alignItems: "center",
     marginBottom: Spacing.lg,
-  },
-  badgeCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#FF4D6D",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  badgeCircleLocked: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(59, 47, 138, 0.1)",
-    borderWidth: 2,
-    borderColor: "rgba(59, 47, 138, 0.2)",
-    overflow: "hidden",
-  },
-  badgeProgress: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(184, 139, 255, 0.3)",
   },
   badgeName: {
     marginTop: Spacing.sm,
@@ -395,5 +387,78 @@ const styles = StyleSheet.create({
   },
   badgeNameLocked: {
     color: "rgba(59, 47, 138, 0.5)",
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: MAX_APP_WIDTH,
+    borderTopLeftRadius: BorderRadius["2xl"],
+    borderTopRightRadius: BorderRadius["2xl"],
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    ...Shadows.cardElevated,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: Spacing.xl,
+  },
+  sheetHeader: {
+    alignItems: "center",
+    marginBottom: Spacing.xl,
+  },
+  sheetTitle: {
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    textAlign: "center",
+  },
+  sheetDescription: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  earnedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing["2xl"],
+  },
+  earnedText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1A1458",
+  },
+  progressBlock: {
+    marginBottom: Spacing["2xl"],
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(59, 47, 138, 0.1)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 5,
+    backgroundColor: "#B88BFF",
+  },
+  progressText: {
+    marginTop: Spacing.sm,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  closeButton: {
+    width: "100%",
   },
 });
