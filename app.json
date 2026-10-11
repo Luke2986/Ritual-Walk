@@ -11,6 +11,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.stepritual.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "UIBackgroundModes": ["location"],
         "NSLocationWhenInUseUsageDescription": "Step Ritual ha bisogno della tua posizione per tracciare le tue camminate.",
@@ -21,8 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0D0221",
-        "foregroundImage": "./assets/images/icon.png"
+        "backgroundColor": "#150313",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -33,6 +36,11 @@
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "ACTIVITY_RECOGNITION"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -46,9 +54,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0D0221",
+          "backgroundColor": "#150313",
           "dark": {
-            "backgroundColor": "#0D0221"
+            "backgroundColor": "#150313"
           }
         }
       ],
