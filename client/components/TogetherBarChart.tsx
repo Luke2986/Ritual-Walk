@@ -8,92 +8,128 @@ import { shortName } from "@/lib/shortName";
 import { useAppWidth } from "@/hooks/useAppWidth";
 import {
   CHART_EDGE_SPACING,
-  fitBarWidth,
+  fitBars,
   fitLabels,
   formatKmAxisLabel,
 } from "@/lib/chartLayout";
+import type { DailyStats, StatsRange } from "@/lib/statsAggregation";
 
 const midnightIndigo = "#1A1458";
+const SEGMENT_GAP = 2;
+const TOP_RADIUS = 6;
 
-interface YearlyData {
-  ioKm: number[];
-  partnerKm: number[];
-}
+const PERIODS: Record<
+  StatsRange,
+  {
+    labels: string[];
+    shortLabels: string[];
+    period: string;
+    maxBarWidth: number;
+    minGap: number;
+    yAxisWidth: number;
+    xLabelSize: number;
+  }
+> = {
+  week: {
+    labels: ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"],
+    shortLabels: ["L", "M", "M", "G", "V", "S", "D"],
+    period: "questa settimana",
+    maxBarWidth: 26,
+    minGap: 8,
+    yAxisWidth: 40,
+    xLabelSize: 11,
+  },
+  month: {
+    labels: ["Sett 1", "Sett 2", "Sett 3", "Sett 4"],
+    shortLabels: ["S1", "S2", "S3", "S4"],
+    period: "questo mese",
+    maxBarWidth: 40,
+    minGap: 16,
+    yAxisWidth: 40,
+    xLabelSize: 10,
+  },
+  year: {
+    labels: [
+      "Gen",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mag",
+      "Giu",
+      "Lug",
+      "Ago",
+      "Set",
+      "Ott",
+      "Nov",
+      "Dic",
+    ],
+    shortLabels: ["G", "F", "M", "A", "M", "G", "L", "A", "S", "O", "N", "D"],
+    period: "quest'anno",
+    maxBarWidth: 16,
+    minGap: 4,
+    yAxisWidth: 35,
+    xLabelSize: 8,
+  },
+};
 
-interface YearlyDualBarChartProps {
-  data: YearlyData;
+interface TogetherBarChartProps {
+  data: DailyStats;
+  range: StatsRange;
   partnerName: string;
 }
 
-const monthLabels = [
-  "Gen",
-  "Feb",
-  "Mar",
-  "Apr",
-  "Mag",
-  "Giu",
-  "Lug",
-  "Ago",
-  "Set",
-  "Ott",
-  "Nov",
-  "Dic",
-];
-
-const monthInitials = [
-  "G",
-  "F",
-  "M",
-  "A",
-  "M",
-  "G",
-  "L",
-  "A",
-  "S",
-  "O",
-  "N",
-  "D",
-];
-
-const INNER_GAP = 2;
-const GROUP_GAP = 6;
-
-export function YearlyDualBarChart({
+// One bar per day, week or month: what you walked together, split by color into each
+// person's part. Stacked rather than side by side, so it reads as a shared total, not a race.
+export function TogetherBarChart({
   data,
+  range,
   partnerName,
-}: YearlyDualBarChartProps) {
-  const totalIo = data.ioKm.reduce((sum, km) => sum + km, 0);
-  const totalPartner = data.partnerKm.reduce((sum, km) => sum + km, 0);
-  const totalTogether = totalIo + totalPartner;
+}: TogetherBarChartProps) {
+  const config = PERIODS[range];
+  const totals = config.labels.map(
+    (_, index) => (data.ioKm[index] || 0) + (data.partnerKm[index] || 0),
+  );
+  const totalTogether = totals.reduce((sum, km) => sum + km, 0);
 
   const chartWidth = useAppWidth() - Spacing.lg * 4;
-  const plotWidth = chartWidth - 45;
-  const barWidth = fitBarWidth(
+  const plotWidth = chartWidth - (config.yAxisWidth + 10);
+  const { barWidth, spacing } = fitBars(
     plotWidth,
-    monthLabels.length,
-    INNER_GAP,
-    GROUP_GAP,
-    10,
+    config.labels.length,
+    config.minGap,
+    config.maxBarWidth,
   );
-  const labels = fitLabels(barWidth, INNER_GAP, monthLabels, monthInitials);
+  const labels = fitLabels(
+    barWidth + spacing,
+    config.labels,
+    config.shortLabels,
+  );
 
-  const chartData = labels.flatMap((label, index) => [
-    {
-      value: data.ioKm[index] || 0,
-      frontColor: PersonColors.me,
-      spacing: INNER_GAP,
+  const stackData = labels.map((label, index) => {
+    const me = data.ioKm[index] || 0;
+    const partner = data.partnerKm[index] || 0;
+    const segments = [
+      { value: me, color: PersonColors.me },
+      { value: partner, color: PersonColors.partner },
+    ].filter((segment) => segment.value > 0);
+    return {
       label,
-      labelWidth: barWidth * 2 + INNER_GAP,
-    },
-    {
-      value: data.partnerKm[index] || 0,
-      frontColor: PersonColors.partner,
-      spacing: GROUP_GAP,
-    },
-  ]);
+      labelWidth: barWidth + spacing,
+      spacing,
+      // Only the top segment gets rounded corners; a thin gap separates the two people.
+      stacks:
+        segments.length > 0
+          ? segments.map((segment, i) => ({
+              ...segment,
+              marginBottom: i > 0 ? SEGMENT_GAP : 0,
+              borderTopLeftRadius: i === segments.length - 1 ? TOP_RADIUS : 0,
+              borderTopRightRadius: i === segments.length - 1 ? TOP_RADIUS : 0,
+            }))
+          : [{ value: 0, color: "transparent" }],
+    };
+  });
 
-  const maxValue = Math.max(...data.ioKm, ...data.partnerKm, 1);
-  const yAxisMax = Math.ceil(maxValue * 1.2);
+  const yAxisMax = Math.ceil(Math.max(...totals, 1) * 1.2);
 
   return (
     <View style={styles.container}>
@@ -105,39 +141,38 @@ export function YearlyDualBarChart({
           {formatDistance(totalTogether)}
         </ThemedText>
         <ThemedText type="body" style={styles.summaryText}>
-          {"quest'anno"}
+          {config.period}
         </ThemedText>
       </View>
 
       <View style={styles.chartContainer}>
         <BarChart
           // Bars only animate on mount, so remount when the numbers change.
-          key={[...data.ioKm, ...data.partnerKm].join()}
-          data={chartData}
+          key={`${range}:${[...data.ioKm, ...data.partnerKm].join()}`}
+          stackData={stackData}
           barWidth={barWidth}
-          spacing={INNER_GAP}
+          spacing={spacing}
           initialSpacing={CHART_EDGE_SPACING}
           endSpacing={CHART_EDGE_SPACING}
           disableScroll
-          roundedTop
-          roundedBottom={false}
           hideRules
           xAxisThickness={0}
           yAxisThickness={0}
-          yAxisTextStyle={styles.yAxisText}
-          xAxisLabelTextStyle={styles.xAxisText}
+          yAxisTextStyle={styles.axisText}
+          xAxisLabelTextStyle={[
+            styles.axisText,
+            { fontSize: config.xLabelSize },
+          ]}
           noOfSections={4}
           maxValue={yAxisMax}
           showFractionalValues
           roundToDigits={2}
           formatYLabel={formatKmAxisLabel}
-          yAxisLabelWidth={35}
+          yAxisLabelWidth={config.yAxisWidth}
           width={plotWidth}
           height={180}
           isAnimated
           animationDuration={600}
-          barBorderTopLeftRadius={6}
-          barBorderTopRightRadius={6}
         />
       </View>
 
@@ -147,7 +182,7 @@ export function YearlyDualBarChart({
             style={[styles.legendDot, { backgroundColor: PersonColors.me }]}
           />
           <ThemedText type="small" style={styles.legendText}>
-            Io ({formatDistance(totalIo)})
+            Io
           </ThemedText>
         </View>
         <View style={styles.legendItem}>
@@ -158,7 +193,7 @@ export function YearlyDualBarChart({
             ]}
           />
           <ThemedText type="small" style={styles.legendText}>
-            {shortName(partnerName)} ({formatDistance(totalPartner)})
+            {shortName(partnerName)}
           </ThemedText>
         </View>
       </View>
@@ -199,14 +234,9 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.md,
     alignItems: "center",
   },
-  yAxisText: {
+  axisText: {
     color: midnightIndigo,
     fontSize: 10,
-    opacity: 0.6,
-  },
-  xAxisText: {
-    color: midnightIndigo,
-    fontSize: 8,
     opacity: 0.6,
   },
   legendContainer: {
@@ -224,14 +254,6 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: PersonColors.me,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 4,
-      },
-    }),
   },
   legendText: {
     color: midnightIndigo,

@@ -18,9 +18,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { EmptyState } from "@/components/EmptyState";
 import { TimeRangeToggle, TimeRange } from "@/components/TimeRangeToggle";
-import { WeeklyDualBarChart } from "@/components/WeeklyDualBarChart";
-import { MonthlyDualBarChart } from "@/components/MonthlyDualBarChart";
-import { YearlyDualBarChart } from "@/components/YearlyDualBarChart";
+import { TogetherBarChart } from "@/components/TogetherBarChart";
 import { ThemedText } from "@/components/ThemedText";
 import { WalkCard } from "@/components/WalkCard";
 import { useTheme } from "@/hooks/useTheme";
@@ -121,22 +119,19 @@ export default function HistoryScreen() {
     userId === user?.id ? user.nickname : partnerName;
 
   const renderChart = () => {
-    switch (timeRange) {
-      case "week":
-        return (
-          <WeeklyDualBarChart data={weeklyStats} partnerName={partnerName} />
-        );
-      case "month":
-        return (
-          <MonthlyDualBarChart data={monthlyStats} partnerName={partnerName} />
-        );
-      case "year":
-        return (
-          <YearlyDualBarChart data={yearlyStats} partnerName={partnerName} />
-        );
-      default:
-        return null;
-    }
+    const data =
+      timeRange === "week"
+        ? weeklyStats
+        : timeRange === "month"
+          ? monthlyStats
+          : yearlyStats;
+    return (
+      <TogetherBarChart
+        data={data}
+        range={timeRange}
+        partnerName={partnerName}
+      />
+    );
   };
 
   if (!couple) {
